@@ -6,11 +6,9 @@ const categorySchema = mongoose.Schema({
     enum: ['Plumbing', 'Tutoring', 'Cleaning', 'Repair', 'Landscaping', 'Painting', 'Electrician'],
     require: true,
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+},
+  { timestamps: true }
+);
 
 const Category = mongoose.model('Category', categorySchema);
 

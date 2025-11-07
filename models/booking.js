@@ -1,31 +1,38 @@
 const bookingSchema = new mongoose.Schema({
 
-  service: {
+  serviceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Service",
     required: true,
 
   },
-
-  customer: {
+  customerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
   },
-
+  providerId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
   date: {
     type: Date,
     required: true,
   },
-
   status: {
     type: String,
     enum: ["pending", "confirmed", "completed", "cancelled"],
+    default: "pending",
   },
 
-  messages: [messageSchema], 
-
-});
+  messages: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref:'Message',
+  },
+},
+  { timestamps: true }
+);
 
 const Booking = mongoose.model("Booking", bookingSchema);
 

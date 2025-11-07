@@ -1,17 +1,22 @@
 const mongoose = require('mongoose');
 
 const reviewSchema = mongoose.Schema({
-  booking: {
+  bookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
     require: true,
   },
-  customer: {
+  reviewerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     require: true,
   },
-  service: {
+  providerId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+  serviceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Service',
     require: true,
@@ -30,7 +35,9 @@ const reviewSchema = mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-});
+  },
+  { timestamps: true }
+);
 
 const Review = mongoose.model('Review', reviewSchema);
 
