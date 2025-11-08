@@ -7,3 +7,5 @@ function checkRole(allowedRoles) {
     next();
   };
 }
+
+module.exports = checkRole;

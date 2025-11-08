@@ -3,8 +3,8 @@ const router = express.Router();
 const mongoose = require('mongoose');
 
 const User = require('../models/user.js');
-const verifyToken = require('../middlewares/verifyToken.js');
-const checkRole = require('../middlewares/checkRole.js');
+const verifyToken = require('../middleware/verify-token.js');
+const checkRole = require('../middleware/checkRole.js');
 const Message = require('../models/message.js');
 
 
