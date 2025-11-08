@@ -4,32 +4,32 @@ const reviewSchema = new mongoose.Schema({
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
-    require: true,
+    required: true,
   },
   reviewerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    require: true,
+    required: true,
   },
   providerId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-    },
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
   serviceId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Service',
-    require: true,
+    required: true,
   },
   rating: {
     type: Number,
-    require: true,
+    required: true,
     min: 1,
     max: 5,
   },
   comment: {
     type: String,
-    require: true,
+    required: true,
   },
   createdAt: {
     type: Date,
