@@ -25,6 +25,6 @@ const messageSchema = new mongoose.Schema({
   { timestamps: { createdAt: "sentAt", updatedAt: false } }
 );
 
-const Category = mongoose.model('Message', categorySchema);
+const Message = mongoose.model('Message', messageSchema);
 
 module.exports = Message;
