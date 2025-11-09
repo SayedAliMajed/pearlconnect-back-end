@@ -1,5 +1,5 @@
 const express = require('express');
-const Service = require('../models/service');
+const Service = require('../models/services');
 const verifyToken = require('../middleware/verify-token');
 const checkRole = require('../middleware/checkRole');
 
@@ -18,7 +18,7 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ err: 'title, description, price, and provider are required' });
     }
     if (typeof price !== 'number' || price < 0) {
-      return res.status(400).json({ err: 'price must be number' });
+      return res.status(400).json({ err: 'Price must be a valid number in BD' });
     }
 
     const created = await Service.create({
@@ -37,13 +37,62 @@ router.post('/', verifyToken, async (req, res) => {
   }
 });
 
-// LIST all services
+// LIST all services with optional search and filtering
 router.get('/', async (req, res) => {
   try {
-    const services = await Service.find({}, 'title description price category provider images createdAt')
+    const { search, category, provider, minPrice, maxPrice, page = 1, limit = 20 } = req.query;
+    
+    // Build filter object
+    let filter = {};
+    
+    // Text search in title and description
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Category filter
+    if (category) {
+      filter.category = category;
+    }
+    
+    // Provider filter
+    if (provider) {
+      filter.provider = provider;
+    }
+    
+    // Price range filter
+    if (minPrice || maxPrice) {
+      filter.price = {};
+      if (minPrice) filter.price.$gte = parseFloat(minPrice);
+      if (maxPrice) filter.price.$lte = parseFloat(maxPrice);
+    }
+    
+    // Calculate skip for pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Execute query
+    const services = await Service.find(filter, 'title description price category provider images createdAt')
       .populate('provider', 'name email')
-      .populate('category', 'name');
-    return res.json(services);
+      .populate('category', 'name')
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
+      
+    // Get total count for pagination
+    const total = await Service.countDocuments(filter);
+    
+    return res.json({
+      services,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    });
   } catch (err) {
     return res.status(500).json({ err: err.message });
   }
@@ -63,14 +112,14 @@ router.get('/:serviceId', async (req, res) => {
 });
 
 // UPDATE a service (owner or admin)
-router.patch('/:serviceId', verifyToken, async (req, res) => {
+router.put('/:serviceId', verifyToken, async (req, res) => {
   try {
     const existing = await Service.findById(req.params.serviceId);
     if (!existing) return res.status(404).json({ err: 'Service not found' });
 
     // check ownership
     if (req.user._id !== existing.provider.toString() && req.user.role !== 'admin') {
-      return res.status(403).json({ err:  err.message});
+      return res.status(403).json({ err: 'You are not authorized to update this service' });
     }
 
     // copy updates safely
@@ -82,7 +131,7 @@ router.patch('/:serviceId', verifyToken, async (req, res) => {
     // validation
     if (updates.price != null) {
       if (typeof updates.price !== 'number' || updates.price < 0) {
-        return res.status(400).json({ err: 'price must be number' });
+        return res.status(400).json({ err: 'Price must be a valid number in BD' });
       }
     }
 
@@ -106,7 +155,7 @@ router.delete('/:serviceId', verifyToken, async (req, res) => {
 
     // if user is admin or the service owner
     if (req.user.role !== 'admin' && req.user._id !== service.provider.toString()) {
-      return res.status(500).json({ err:  err.message });
+      return res.status(403).json({ err: 'You are not authorized to delete this service' });
     }
 
     await Service.findByIdAndDelete(req.params.serviceId);

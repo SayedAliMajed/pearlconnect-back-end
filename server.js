@@ -16,9 +16,13 @@ const PORT = process.env.PORT || 3000;
 const authCtrl = require('./controllers/auth');
 const usersCtrl = require('./controllers/users');
 const servicesCtrl = require('./controllers/services');
+const messageCtrl = require('./controllers/message');
+const categoriesCtrl = require('./controllers/categories');
+const reviewsCtrl = require('./controllers/reviews');
+const bookingsCtrl = require('./controllers/booking');
 
 // MiddleWare
-const verifyToken = require('./middleware/verify-token.js');
+const verifyToken = require('./middleware/verify-token');
 
 // Socket.IO
 const { initializeSocket } = require('./socket/socketHandler.js');
@@ -35,17 +39,21 @@ app.use(express.json());
 app.use(logger('dev'));
 
 // Routes
+// Health check
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'PearlConnect API is running' });
+});
+
 // Public
 app.use('/auth', authCtrl);
 app.use('/services', servicesCtrl);
 
-// Protected Routes
-app.use(verifyToken);
-app.use('/users', usersCtrl);
-app.use('/message', messageCtrl);
-app.use('/categories', categoriesCtrl);
-app.use('/reviews', reviewsCtrl);
-app.use('/bookings', bookingsCtrl);
+// Protected Routes - apply verifyToken middleware only to these
+app.use('/users', verifyToken, usersCtrl);
+app.use('/message', verifyToken, messageCtrl);
+app.use('/categories', verifyToken, categoriesCtrl);
+app.use('/reviews', verifyToken, reviewsCtrl);
+app.use('/bookings', verifyToken, bookingsCtrl);
 
 
 // Initialize Socket.IO
