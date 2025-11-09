@@ -13,11 +13,9 @@ const logger = require('morgan');
 const PORT = process.env.PORT || 3000;
 
 // Controllers
-const authCtrl = require('./controllers/auth.js');
-const usersCtrl = require('./controllers/users.js');
-const messageCtrl = require('./controllers/message.js');
-const categoriesCtrl = require('./controllers/categories.js');
-const reviewsCtrl = require('./controllers/reviews.js');
+const authCtrl = require('./controllers/auth');
+const usersCtrl = require('./controllers/users');
+const servicesCtrl = require('./controllers/services');
 
 // MiddleWare
 const verifyToken = require('./middleware/verify-token.js');
@@ -39,6 +37,7 @@ app.use(logger('dev'));
 // Routes
 // Public
 app.use('/auth', authCtrl);
+app.use('/services', servicesCtrl);
 
 // Protected Routes
 app.use(verifyToken);
@@ -46,6 +45,8 @@ app.use('/users', usersCtrl);
 app.use('/message', messageCtrl);
 app.use('/categories', categoriesCtrl);
 app.use('/reviews', reviewsCtrl);
+app.use('/bookings', bookingsCtrl);
+
 
 // Initialize Socket.IO
 const io = initializeSocket(server);
