@@ -20,6 +20,13 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ err: 'serviceId, customerId, providerId, and date are required' });
     }
 
+    // Validate booking date is in the future
+    const bookingDate = new Date(date);
+    const now = new Date();
+    if (bookingDate <= now) {
+      return res.status(400).json({ err: 'Booking date must be in the future' });
+    }
+
     const created = await Booking.create({
       serviceId,
       customerId,
@@ -104,7 +111,7 @@ router.patch('/:bookingId', verifyToken, async (req, res) => {
     if (updates.status) {
       const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
       if (!validStatuses.includes(updates.status)) {
-        return res.status(500).json({ err: err.message });
+        return res.status(400).json({ err: 'Invalid status. Must be: pending, confirmed, completed, or cancelled' });
       }
     }
 
