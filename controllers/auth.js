@@ -1,13 +1,13 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const User = require('../models/user.js');
+const User = require('../models/user');
 const verifyToken = require('../middleware/verify-token');
 const checkRole = require('../middleware/checkRole');
 
 const router = express.Router();
 
-router.post('/sign-up', async (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     // Check if username already exists
     const userInDatabase = await User.findOne({ username: req.body.username });
@@ -77,7 +77,7 @@ router.post('/sign-up', async (req, res) => {
   }
 });
 
-router.post('/sign-in', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const userInDatabase = await User.findOne({ username: req.body.username });
 

@@ -39,6 +39,11 @@ app.use(express.json());
 app.use(logger('dev'));
 
 // Routes
+// Health check
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'PearlConnect API is running' });
+});
+
 // Public
 app.use('/auth', authCtrl);
 app.use('/services', servicesCtrl);

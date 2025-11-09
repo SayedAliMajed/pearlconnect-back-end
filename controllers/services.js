@@ -1,5 +1,5 @@
 const express = require('express');
-const Service = require('../models/service');
+const Service = require('../models/services');
 const verifyToken = require('../middleware/verify-token');
 const checkRole = require('../middleware/checkRole');
 

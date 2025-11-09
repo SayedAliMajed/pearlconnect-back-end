@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
 
-const User = require('../models/user.js');
-const verifyToken = require('../middleware/verify-token.js');
-const checkRole = require('../middleware/checkRole.js');
-const Message = require('../models/message.js');
+const User = require('../models/user');
+const verifyToken = require('../middleware/verify-token');
+const checkRole = require('../middleware/checkRole');
+const Message = require('../models/message');
 
 
 // CREATE - POST - /messages
