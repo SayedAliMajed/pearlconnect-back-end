@@ -13,6 +13,7 @@ const PORT = process.env.PORT || 3000;
 // Controllers
 const authCtrl = require('./controllers/auth');
 const usersCtrl = require('./controllers/users');
+const servicesCtrl = require('./controllers/services');
 
 // MiddleWare
 const verifyToken = require('./middleware/verify-token');
@@ -29,10 +30,12 @@ app.use(logger('dev'));
 
 // Public
 app.use('/auth', authCtrl);
+app.use('/services', servicesCtrl);
 
 // Protected Routes
 app.use(verifyToken);
 app.use('/users', usersCtrl);
+
 
 app.listen(PORT, () => {
   console.log('The express app is ready!');
