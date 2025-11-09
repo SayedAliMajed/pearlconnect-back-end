@@ -1,3 +1,4 @@
 node_modules
 .env
 API_DOCUMENTATION_FOR_FRONTEND.md
+SOCKET_IO_API.md
