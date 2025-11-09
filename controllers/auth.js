@@ -1,24 +1,55 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const User = require('../models/user');
+const User = require('../models/user.js');
+const verifyToken = require('../middleware/verify-token');
+const checkRole = require('../middleware/checkRole');
 
 const router = express.Router();
 
 router.post('/sign-up', async (req, res) => {
   try {
+    // Check if username already exists
     const userInDatabase = await User.findOne({ username: req.body.username });
 
     if (userInDatabase) {
       return res.status(409).json({
-        err: 'Username or Password is invalid',
+        err: 'Username already exists',
+      });
+    }
+
+    // Check if email already exists
+    const emailInDatabase = await User.findOne({ email: req.body.email });
+    if (emailInDatabase) {
+      return res.status(409).json({
+        err: 'Email already exists',
+      });
+    }
+
+    // Validate required fields
+    if (!req.body.username || !req.body.email || !req.body.password || !req.body.role) {
+      return res.status(400).json({
+        err: 'Username, email, password, and role are required',
+      });
+    }
+
+    // Validate role
+    if (!['customer', 'provider', 'admin'].includes(req.body.role)) {
+      return res.status(400).json({
+        err: 'Role must be customer, provider, or admin',
       });
     }
 
     const hashedPassword = bcrypt.hashSync(req.body.password, 10);
-    req.body.hashedPassword = hashedPassword;
+    const userData = {
+      username: req.body.username,
+      email: req.body.email,
+      hashedPassword: hashedPassword,
+      role: req.body.role,
+      profile: req.body.profile || {}
+    };
 
-    const newUser = await User.create(req.body);
+    const newUser = await User.create(userData);
 
     const payload = {
       username: newUser.username,
@@ -27,10 +58,22 @@ router.post('/sign-up', async (req, res) => {
 
     const token = jwt.sign(payload, process.env.JWT_SECRET);
 
-    res.json({ token, user: newUser });
+    res.status(201).json({ token, user: newUser });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ err: 'Something went wrong!' });
+    console.log('Sign-up error:', err);
+    
+    // Handle specific validation errors
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(error => error.message);
+      return res.status(400).json({ err: messages.join(', ') });
+    }
+    
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyValue)[0];
+      return res.status(409).json({ err: `${field} already exists` });
+    }
+
+    res.status(500).json({ err: 'Failed to create user' });
   }
 });
 
@@ -59,6 +102,191 @@ router.post('/sign-in', async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ err: 'Invalid Username or Password' });
+  }
+});
+
+// GET /users - List all users (admin only)
+router.get('/users', verifyToken, checkRole(['admin']), async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const users = await User.find({}, 'username email role profile createdAt')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalUsers = await User.countDocuments();
+
+    const totalPages = Math.ceil(totalUsers / limit);
+
+    res.status(200).json({
+      users,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalUsers,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
+});
+
+// GET /:id - Get specific user
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    // Users can only access their own data unless they are admin
+    if (req.user._id !== req.params.id && req.user.role !== 'admin') {
+      return res.status(403).json({ err: 'Access denied' });
+    }
+
+    const user = await User.findById(req.params.id, 'username email role profile createdAt');
+    if (!user) {
+      return res.status(404).json({ err: 'User not found' });
+    }
+
+    res.status(200).json(user);
+  } catch (err) {
+    res.status(500).json({ err: err.message });
+  }
+});
+
+// PUT/PATCH /profile - Update user profile
+router.put('/profile', verifyToken, async (req, res) => {
+  try {
+    const allowedUpdates = ['profile'];
+    const updates = {};
+
+    // Only allow specific fields to be updated
+    if (req.body.profile) {
+      updates.profile = { ...req.body.profile };
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ err: 'Nothing to update' });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ err: 'User not found' });
+    }
+
+    res.status(200).json({ 
+      message: 'Profile updated successfully',
+      user: updatedUser 
+    });
+  } catch (err) {
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(error => error.message);
+      return res.status(400).json({ err: messages.join(', ') });
+    }
+    res.status(500).json({ err: err.message });
+  }
+});
+
+// PUT /change-password - Change user password
+router.put('/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ 
+        err: 'Current password and new password are required' 
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ 
+        err: 'New password must be at least 6 characters long' 
+      });
+    }
+
+    // Get user with password
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ err: 'User not found' });
+    }
+
+    // Verify current password
+    const validPassword = bcrypt.compareSync(currentPassword, user.hashedPassword);
+    if (!validPassword) {
+      return res.status(401).json({ err: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedNewPassword = bcrypt.hashSync(newPassword, 10);
+    
+    // Update password
+    user.hashedPassword = hashedNewPassword;
+    await user.save();
+
+    res.status(200).json({ message: 'Password changed successfully' });
+  } catch (err) {
+    res.status(500).json({ err: 'Failed to change password' });
+  }
+});
+
+// DELETE /account - Delete user account
+router.delete('/account', verifyToken, async (req, res) => {
+  try {
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ err: 'Password is required to delete account' });
+    }
+
+    // Get user with password
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ err: 'User not found' });
+    }
+
+    // Verify password
+    const validPassword = bcrypt.compareSync(password, user.hashedPassword);
+    if (!validPassword) {
+      return res.status(401).json({ err: 'Password is incorrect' });
+    }
+
+    // Delete user account
+    await User.findByIdAndDelete(req.user._id);
+
+    res.status(200).json({ message: 'Account deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ err: 'Failed to delete account' });
+  }
+});
+
+// GET /refresh-token - Refresh JWT token
+router.get('/refresh-token', verifyToken, async (req, res) => {
+  try {
+    // Get fresh user data
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ err: 'User not found' });
+    }
+
+    const payload = {
+      username: user.username,
+      _id: user._id,
+    };
+
+    const newToken = jwt.sign(payload, process.env.JWT_SECRET);
+
+    res.status(200).json({ 
+      token: newToken,
+      user: user 
+    });
+  } catch (err) {
+    res.status(500).json({ err: 'Failed to refresh token' });
   }
 });
 
