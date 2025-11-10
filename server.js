@@ -55,6 +55,14 @@ app.use('/categories', verifyToken, categoriesCtrl);
 app.use('/reviews', verifyToken, reviewsCtrl);
 app.use('/bookings', verifyToken, bookingsCtrl);
 
+app.use(cors({
+  origin: [
+    'hhttps://pearlconnect-front-end.vercel.app/', 
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ],
+  credentials: true
+}));
 
 // Initialize Socket.IO
 const io = initializeSocket(server);
