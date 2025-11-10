@@ -7,7 +7,7 @@ const checkRole = require('../middleware/checkRole');
 
 const router = express.Router();
 
-router.post('/register', async (req, res) => {
+router.post('/sign-up', async (req, res) => {
   try {
     // Check if username already exists
     const userInDatabase = await User.findOne({ username: req.body.username });
