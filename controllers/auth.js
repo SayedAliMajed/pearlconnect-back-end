@@ -29,8 +29,12 @@ router.post('/sign-up', async (req, res) => {
 
     res.json({ token, user: newUser });
   } catch (err) {
-    console.log(err);
-    res.status(500).json({ err: 'Something went wrong!' });
+    console.error('Sign-up error:', err);
+    res.status(500).json({ 
+      err: 'Something went wrong!',
+      details: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 });
 
