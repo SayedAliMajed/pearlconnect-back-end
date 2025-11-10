@@ -16,9 +16,22 @@ router.post('/sign-up', async (req, res) => {
     }
 
     const hashedPassword = bcrypt.hashSync(req.body.password, 10);
-    req.body.hashedPassword = hashedPassword;
+    
+    // Handle email field to prevent duplicate key errors
+    const userData = {
+      username: req.body.username,
+      hashedPassword: hashedPassword
+    };
+    
+    // Only add email if it's provided and not null
+    if (req.body.email && req.body.email.trim() !== '') {
+      userData.email = req.body.email;
+    } else {
+      // Use a unique placeholder for users without email
+      userData.email = `noemail_${Date.now()}_${Math.random().toString(36).substr(2, 9)}@placeholder.local`;
+    }
 
-    const newUser = await User.create(req.body);
+    const newUser = await User.create(userData);
 
     const payload = {
       username: newUser.username,
