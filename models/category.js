@@ -4,7 +4,7 @@ const categorySchema = new mongoose.Schema({
   name: {
     type: String,
     enum: ['Plumbing', 'Tutoring', 'Cleaning', 'Repair', 'Landscaping', 'Painting', 'Electrician'],
-    require: true,
+    required: true,
   },
 },
   { timestamps: true }

@@ -5,6 +5,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
+    unique: true
   },
   hashedPassword: {
     type: String,
@@ -12,6 +13,7 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
+    required: true,
     unique: true,
     trim: true,
     default: null  // Make optional to prevent duplicate key errors
@@ -34,8 +36,8 @@ const userSchema = new mongoose.Schema({
     },
     address: { 
       type: String, 
-      trim: true,
-      default: ""  // Optional string
+        trim: true 
+    },
     },
   },
 }, { timestamps: true });
