@@ -67,7 +67,6 @@ app.use(cors({
 // Initialize Socket.IO
 const io = initializeSocket(server);
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-  console.log(`📡 Socket.IO is ready for real-time connections`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
