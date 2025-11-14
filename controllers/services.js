@@ -10,7 +10,12 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const { title, description, price, category, provider, images } = req.body;
 
-    if (req.user._id !== provider && req.user.role !== 'admin') {
+    // Check permissions: user must be admin, or a provider creating for themselves
+    const isAdmin = req.user.role === 'admin';
+    const isProvider = req.user.role === 'provider';
+    const isCreatingOwnService = isProvider && req.user._id.toString() === provider.toString();
+
+    if (!isAdmin && !isCreatingOwnService) {
       return res.status(403).json({ err: 'You can only create services as provider or an admin' });
     }
 
@@ -29,11 +34,16 @@ router.post('/', verifyToken, async (req, res) => {
       provider,
       images,
     });
-
     return res.status(201).json(created);
   } catch (err) {
-    console.log(err);
-    return res.status(500).json({ err: 'Failed to create service' });
+    console.error('Service creation error:', err);
+    console.error('Error details:', {
+      name: err.name,
+      message: err.message,
+      errors: err.errors,
+      stack: err.stack
+    });
+    return res.status(500).json({ err: 'Failed to create service', details: err.message });
   }
 });
 
