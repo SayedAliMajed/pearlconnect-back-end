@@ -34,11 +34,16 @@ router.post('/', verifyToken, async (req, res) => {
       provider,
       images,
     });
-
     return res.status(201).json(created);
   } catch (err) {
-    console.log(err);
-    return res.status(500).json({ err: 'Failed to create service' });
+    console.error('Service creation error:', err);
+    console.error('Error details:', {
+      name: err.name,
+      message: err.message,
+      errors: err.errors,
+      stack: err.stack
+    });
+    return res.status(500).json({ err: 'Failed to create service', details: err.message });
   }
 });
 

@@ -51,17 +51,11 @@ router.post('/availability', verifyToken, async (req, res) => {
             return res.status(400).json({ err: 'Invalid provider' });
         }
 
-        // Check for duplicate date for this provider
-        const existingAvailability = await Availability.findOne({
+        // Check if availability exists for this provider and date
+        let availability = await Availability.findOne({
             providerId: targetProviderId,
             date: date
         });
-
-        if (existingAvailability) {
-            return res.status(409).json({
-                err: `Provider already has availability for ${new Date(date).toDateString()}. Please choose a different date or update existing availability.`
-            });
-        }
 
         // Parse break times
         let breakTimesArray = [];
@@ -81,7 +75,7 @@ router.post('/availability', verifyToken, async (req, res) => {
             }
         }
 
-        const newAvailability = new Availability({
+        const availabilityData = {
             userId: req.user._id,
             providerId: targetProviderId,
             date: date,
@@ -90,22 +84,38 @@ router.post('/availability', verifyToken, async (req, res) => {
             duration: parseInt(duration),
             isRepeating: isRepeating === 'true' || isRepeating === true,
             breakTimes: breakTimesArray
-        });
+        };
 
-        await newAvailability.save();
-
-        const populated = await Availability.findById(newAvailability._id)
-            .populate('providerId', 'profile.fullName username')
-            .populate('userId', 'profile.fullName username');
-
-        res.status(201).json({ message: 'Availability created successfully', availability: populated });
-    } catch (err) {
-        if (err.code === 11000) {
-            res.status(409).json({ err: 'Availability already exists for this date and provider' });
+        if (availability) {
+            // Update existing availability
+            Object.assign(availability, availabilityData);
+            await availability.save();
+            res.json({ message: 'Availability updated successfully', availability: availability });
         } else {
-            res.status(500).json({ err: err.message });
+            // Create new availability
+            availability = new Availability(availabilityData);
+            await availability.save();
+
+            const populated = await Availability.findById(availability._id)
+                .populate('providerId', 'profile.fullName username')
+                .populate('userId', 'profile.fullName username');
+
+            res.status(201).json({ message: 'Availability created successfully', availability: populated });
         }
+  } catch (err) {
+    console.error('Availability creation error:', err);
+    console.error('Error details:', {
+      name: err.name,
+      message: err.message,
+      errors: err.errors,
+      stack: err.stack
+    });
+    if (err.code === 11000) {
+      res.status(409).json({ err: 'Availability already exists for this date and provider', details: err.message });
+    } else {
+      res.status(500).json({ err: 'Failed to create availability', details: err.message });
     }
+  }
 });
 
 // UPDATE availability

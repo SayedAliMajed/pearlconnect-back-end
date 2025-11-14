@@ -54,6 +54,7 @@ router.post('/sign-up', async (req, res) => {
     const payload = {
       username: newUser.username,
       _id: newUser._id,
+      role: newUser.role,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET);
@@ -94,6 +95,7 @@ router.post('/sign-in', async (req, res) => {
     const payload = {
       username: userInDatabase.username,
       _id: userInDatabase._id,
+      role: userInDatabase.role,
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET);
@@ -277,6 +279,7 @@ router.get('/refresh-token', verifyToken, async (req, res) => {
     const payload = {
       username: user.username,
       _id: user._id,
+      role: user.role,
     };
 
     const newToken = jwt.sign(payload, process.env.JWT_SECRET);
