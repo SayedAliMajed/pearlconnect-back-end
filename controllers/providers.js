@@ -33,7 +33,20 @@ router.get('/availability', verifyToken, async (req, res) => {
 // Providers can create for themselves, admins can create for any provider
 router.post('/availability', verifyToken, async (req, res) => {
     try {
-        const { date, openingTime, closingTime, duration, providerId, breakStartTime, breakEndTime, isRepeating } = req.body;
+        console.log('Availability POST received:', req.body);
+
+        // Map frontend field names to backend expectations
+        const body = req.body;
+        const date = body.date;
+        const openingTime = body.openingTime || body.startTime;
+        const closingTime = body.closingTime || body.endTime;
+        const duration = body.duration || 60; // Default to 60 minutes if not provided
+        const providerId = body.providerId || body.provider;
+        const breakStartTime = body.breakStartTime || body.breakStart;
+        const breakEndTime = body.breakEndTime || body.breakEnd;
+        const isRepeating = body.isRepeating !== undefined ? body.isRepeating : (body.isRecurring || false);
+
+        console.log('Mapped fields:', { date, openingTime, closingTime, duration, breakStartTime, breakEndTime, isRepeating });
 
         // Determine providerId - providers can only set their own, admins can set any
         let targetProviderId;
