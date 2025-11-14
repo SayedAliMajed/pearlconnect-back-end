@@ -34,12 +34,11 @@ const userSchema = new mongoose.Schema({
       trim: true,
       default: ""  // Optional string
     },
-    address: { 
-      type: String, 
-        trim: true 
-    },
-    },
-  },
+    address: {
+      type: String,
+      trim: true
+    }
+  }
 }, { timestamps: true });
 
 userSchema.set('toJSON', {
