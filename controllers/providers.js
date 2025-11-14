@@ -32,24 +32,26 @@ router.get('/availability', verifyToken, async (req, res) => {
 // CREATE availability
 // Providers can create for themselves, admins can create for any provider
 router.post('/availability', verifyToken, async (req, res) => {
+    // Declare variables for error handling scope
+    let targetProviderId, date, openingTime, closingTime, duration, breakTimesArray, isRepeating;
+
     try {
         console.log('Availability POST received:', req.body);
 
         // Map frontend field names to backend expectations
         const body = req.body;
-        const date = body.date;
-        const openingTime = body.openingTime || body.startTime;
-        const closingTime = body.closingTime || body.endTime;
-        const duration = body.duration || 60; // Default to 60 minutes if not provided
+        date = body.date;
+        openingTime = body.openingTime || body.startTime;
+        closingTime = body.closingTime || body.endTime;
+        duration = body.duration || 60; // Default to 60 minutes if not provided
         const providerId = body.providerId || body.provider;
         const breakStartTime = body.breakStartTime || body.breakStart;
         const breakEndTime = body.breakEndTime || body.breakEnd;
-        const isRepeating = body.isRepeating !== undefined ? body.isRepeating : (body.isRecurring || false);
+        isRepeating = body.isRepeating !== undefined ? body.isRepeating : (body.isRecurring || false);
 
         console.log('Mapped fields:', { date, openingTime, closingTime, duration, breakStartTime, breakEndTime, isRepeating });
 
         // Determine providerId - providers can only set their own, admins can set any
-        let targetProviderId;
         if (req.user.role === 'provider') {
             targetProviderId = req.user._id;
         } else if (req.user.role === 'admin') {
@@ -67,7 +69,7 @@ router.post('/availability', verifyToken, async (req, res) => {
         // Check if availability exists for this provider and date
         let availability = await Availability.findOne({
             providerId: targetProviderId,
-            date: date
+            date: date ? new Date(date) : null
         });
 
         // Parse break times
@@ -91,7 +93,7 @@ router.post('/availability', verifyToken, async (req, res) => {
         const availabilityData = {
             userId: req.user._id,
             providerId: targetProviderId,
-            date: date,
+            date: new Date(date),
             openingTime: openingTime,
             closingTime: closingTime,
             duration: parseInt(duration),
@@ -117,17 +119,46 @@ router.post('/availability', verifyToken, async (req, res) => {
         }
   } catch (err) {
     console.error('Availability creation error:', err);
+    console.error('Error name:', err.name);
+    console.error('Error code:', err.code);
     console.error('Error details:', {
-      name: err.name,
       message: err.message,
       errors: err.errors,
       stack: err.stack
     });
+
+    // Handle unique index violations
     if (err.code === 11000) {
-      res.status(409).json({ err: 'Availability already exists for this date and provider', details: err.message });
-    } else {
-      res.status(500).json({ err: 'Failed to create availability', details: err.message });
+      console.log('Duplicate key error - trying to use existing availability');
+      // Try to find and update existing availability
+      try {
+        let existing = await Availability.findOne({
+          providerId: targetProviderId,
+          date: new Date(date)
+        });
+
+        if (existing) {
+          console.log('Updating existing availability');
+          existing.openingTime = openingTime;
+          existing.closingTime = closingTime;
+          existing.duration = parseInt(duration);
+          existing.breakTimes = breakTimesArray;
+          existing.isRepeating = isRepeating;
+          await existing.save();
+
+          return res.json({ message: 'Availability updated successfully', availability: existing });
+        }
+      } catch (updateErr) {
+        console.error('Failed to update existing availability:', updateErr);
+      }
+
+      return res.status(409).json({
+        err: 'Availability slot already exists for this date',
+        details: 'Try updating the existing slot instead of creating a new one'
+      });
     }
+
+    return res.status(500).json({ err: 'Failed to create availability', details: err.message });
   }
 });
 
@@ -163,7 +194,7 @@ router.put('/availability/:availabilityId', verifyToken, async (req, res) => {
         if (date && new Date(date).getTime() !== existing.date.getTime()) {
             const duplicate = await Availability.findOne({
                 providerId: existing.providerId,
-                date: date,
+                date: new Date(date),
                 _id: { $ne: req.params.availabilityId }
             });
             if (duplicate) {
@@ -171,7 +202,7 @@ router.put('/availability/:availabilityId', verifyToken, async (req, res) => {
                     err: `Provider already has availability for ${new Date(date).toDateString()}`
                 });
             }
-            existing.date = date;
+            existing.date = new Date(date);
         }
 
         // Update other fields
