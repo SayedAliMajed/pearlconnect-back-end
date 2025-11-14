@@ -20,6 +20,7 @@ const messageCtrl = require('./controllers/message');
 const categoriesCtrl = require('./controllers/categories');
 const reviewsCtrl = require('./controllers/reviews');
 const bookingsCtrl = require('./controllers/booking');
+const providersCtrl = require('./controllers/providers');
 
 // MiddleWare
 const verifyToken = require('./middleware/verify-token');
@@ -54,6 +55,7 @@ app.use('/message', verifyToken, messageCtrl);
 app.use('/categories', verifyToken, categoriesCtrl);
 app.use('/reviews', verifyToken, reviewsCtrl);
 app.use('/bookings', verifyToken, bookingsCtrl);
+app.use('/providers', verifyToken, providersCtrl);
 
 app.use(cors({
   origin: [
