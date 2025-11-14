@@ -15,31 +15,32 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    trim: true
+    trim: true,
+    default: null  // Make optional to prevent duplicate key errors
   },
   role: { 
     type: String, 
     enum: ["customer", "provider", "admin"], 
-    required: true
-   },
-   profile: {
-      fullName: { 
+    default: "customer"  // Set default role
+  },
+  profile: {
+    fullName: { 
       type: String, 
-      trim: true 
+      trim: true,
+      default: ""  // Optional string
     },
-      phone: { 
+    phone: { 
       type: String, 
-      trim: true 
+      trim: true,
+      default: ""  // Optional string
     },
-      address: { 
+    address: { 
       type: String, 
         trim: true 
     },
     },
   },
-  { timestamps: true }
-);
-
+}, { timestamps: true });
 
 userSchema.set('toJSON', {
   transform: (document, returnedObject) => {
