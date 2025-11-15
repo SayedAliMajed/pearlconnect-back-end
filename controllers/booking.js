@@ -7,7 +7,7 @@ const router = express.Router();
 
 
 //CREATE a booking (customer only)
- 
+
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { serviceId, customerId, providerId, date } = req.body;
@@ -20,23 +20,79 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ err: 'serviceId, customerId, providerId, and date are required' });
     }
 
-    // Validate booking date is in the future
+    // Parse booking datetime
     const bookingDate = new Date(date);
     const now = new Date();
     if (bookingDate <= now) {
       return res.status(400).json({ err: 'Booking date must be in the future' });
     }
 
+    // Get date components for validation
+    const bookingDay = bookingDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const bookingTime = bookingDate.toTimeString().substring(0, 5); // HH:MM
+
+    // Import Availability model for validations
+    const Availability = require('../models/availability');
+
+    // 1. AVAILABILITY CHECK: Verify booking falls within provider's availability
+    const providerAvailability = await Availability.findOne({
+      providerId: providerId,
+      date: new Date(bookingDay)
+    });
+
+    if (!providerAvailability) {
+      return res.status(400).json({ err: 'Provider has no availability for this date' });
+    }
+
+    // Check if booking time is within opening/closing hours
+    if (bookingTime < providerAvailability.openingTime || bookingTime >= providerAvailability.closingTime) {
+      return res.status(400).json({
+        err: `Booking time ${bookingTime} is outside provider's available hours (${providerAvailability.openingTime} - ${providerAvailability.closingTime})`
+      });
+    }
+
+    // Check if booking time is during break period
+    if (providerAvailability.breakTimes && providerAvailability.breakTimes.length > 0) {
+      const breakStart = providerAvailability.breakTimes[0].startTime;
+      const breakEnd = providerAvailability.breakTimes[0].endTime;
+      if (breakStart && breakEnd && bookingTime >= breakStart && bookingTime < breakEnd) {
+        return res.status(400).json({ err: `Booking time ${bookingTime} falls during break period (${breakStart} - ${breakEnd})` });
+      }
+    }
+
+    // 2. DURATION VALIDATION: Ensure booking time aligns with available slots
+    // Bookings must be at slot intervals based on provider's duration setting
+    const [hours, minutes] = bookingTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    const slotDuration = providerAvailability.duration;
+
+    if (totalMinutes % slotDuration !== 0) {
+      return res.status(400).json({
+        err: `Booking time ${bookingTime} does not align with ${slotDuration}-minute slots. Valid slot times are in ${slotDuration}-minute intervals.`
+      });
+    }
+
+    // 3. CONFLICT DETECTION: Check for existing bookings at the same time
+    const existingBooking = await Booking.findOne({
+      providerId: providerId,
+      date: bookingDate,
+      status: { $in: ['pending', 'confirmed'] } // Only check active bookings
+    });
+
+    if (existingBooking) {
+      return res.status(409).json({ err: 'This time slot is already booked' });
+    }
+
     const created = await Booking.create({
       serviceId,
       customerId,
       providerId,
-      date,
+      date: bookingDate,
     });
 
     return res.status(201).json(created);
   } catch (err) {
-    console.error(err);
+    console.error('Booking creation error:', err);
     return res.status(500).json({ err: 'Failed to create booking' });
   }
 });

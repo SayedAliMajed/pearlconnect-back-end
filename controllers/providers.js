@@ -264,4 +264,45 @@ router.delete('/availability/:availabilityId', verifyToken, async (req, res) => 
     }
 });
 
+// Public endpoint for fetching provider availability (no auth required)
+async function getProviderAvailability(req, res) {
+    try {
+        const { providerId } = req.params;
+
+        // Validate provider exists and is a provider
+        const provider = await User.findById(providerId);
+        if (!provider || provider.role !== 'provider') {
+            return res.status(404).json({ err: 'Provider not found' });
+        }
+
+        // Get all availabilities for this provider
+        const availabilities = await Availability.find({ providerId }).sort({ date: 1 });
+
+        // Format response as requested
+        const formattedAvailabilities = availabilities.map(avail => {
+            const dateStr = avail.date.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+            const breakStartTime = avail.breakTimes && avail.breakTimes.length > 0 ? avail.breakTimes[0].startTime : null;
+            const breakEndTime = avail.breakTimes && avail.breakTimes.length > 0 ? avail.breakTimes[0].endTime : null;
+
+            return {
+                _id: avail._id,
+                provider: avail.providerId.toString(),
+                date: dateStr,
+                openingTime: avail.openingTime,
+                closingTime: avail.closingTime,
+                breakStartTime: breakStartTime,
+                breakEndTime: breakEndTime,
+                isRepeating: avail.isRepeating,
+                duration: avail.duration
+            };
+        });
+
+        res.json(formattedAvailabilities);
+    } catch (err) {
+        console.error('Error fetching provider availability:', err);
+        res.status(500).json({ err: 'Failed to fetch provider availability' });
+    }
+}
+
 module.exports = router;
+module.exports.getProviderAvailability = getProviderAvailability;
