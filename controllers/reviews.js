@@ -33,11 +33,42 @@ router.post('/', verifyToken, async (req, res) => {
 	}
 });
 
-// LIST all reviews
+// LIST reviews with optional filtering and pagination
 router.get('/', async (req, res) => {
 	try {
-		const reviews = await Review.find({}, 'bookingId reviewerId providerId serviceId rating comment createdAt');
-		return res.json(reviews);
+		const { serviceId, providerId, reviewerId, bookingId, page = 1, limit = 10 } = req.query;
+
+		// Build filter object
+		let filter = {};
+		if (serviceId) filter.serviceId = serviceId;
+		if (providerId) filter.providerId = providerId;
+		if (reviewerId) filter.reviewerId = reviewerId;
+		if (bookingId) filter.bookingId = bookingId;
+
+		// Calculate skip for pagination
+		const skip = (parseInt(page) - 1) * parseInt(limit);
+
+		// Execute query with population
+		const reviews = await Review.find(filter)
+			.populate('reviewerId', 'name')
+			.populate('providerId', 'name')
+			.populate('serviceId', 'title')
+			.skip(skip)
+			.limit(parseInt(limit))
+			.sort({ createdAt: -1 });
+
+		// Get total count for pagination
+		const total = await Review.countDocuments(filter);
+
+		return res.json({
+			reviews,
+			pagination: {
+				page: parseInt(page),
+				limit: parseInt(limit),
+				total,
+				totalPages: Math.ceil(total / parseInt(limit))
+			}
+		});
 	} catch (err) {
 		return res.status(500).json({ err: err.message });
 	}

@@ -1,5 +1,6 @@
 const express = require('express');
 const Service = require('../models/services');
+const Review = require('../models/reviews');
 const verifyToken = require('../middleware/verify-token');
 const checkRole = require('../middleware/checkRole');
 
@@ -108,14 +109,33 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET one service by ID 
+// GET one service by ID with review stats
 router.get('/:serviceId', async (req, res) => {
   try {
     const service = await Service.findById(req.params.serviceId)
       .populate('provider', 'name email')
       .populate('category', 'name');
     if (!service) return res.status(404).json({ err: 'Service not found' });
-    return res.json(service);
+
+    // Calculate average rating and review count
+    const reviewStats = await Review.aggregate([
+      { $match: { serviceId: service._id } },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' },
+          reviewCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const stats = reviewStats[0] || { averageRating: 0, reviewCount: 0 };
+
+    return res.json({
+      ...service.toObject(),
+      averageRating: stats.averageRating,
+      reviewCount: stats.reviewCount
+    });
   } catch (err) {
     return res.status(500).json({ err: err.message });
   }
@@ -128,7 +148,7 @@ router.put('/:serviceId', verifyToken, async (req, res) => {
     if (!existing) return res.status(404).json({ err: 'Service not found' });
 
     // check ownership
-    if (req.user._id !== existing.provider.toString() && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== existing.provider.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ err: 'You are not authorized to update this service' });
     }
 
@@ -164,10 +184,9 @@ router.delete('/:serviceId', verifyToken, async (req, res) => {
     if (!service) return res.status(404).json({ err: 'Service not found' });
 
     // if user is admin or the service owner
-    if (req.user.role !== 'admin' && req.user._id !== service.provider.toString()) {
+    if (req.user.role !== 'admin' && req.user._id.toString() !== service.provider.toString()) {
       return res.status(403).json({ err: 'You are not authorized to delete this service' });
     }
-
     await Service.findByIdAndDelete(req.params.serviceId);
     return res.json({ message: 'Service deleted', _id: service._id });
   } catch (err) {
