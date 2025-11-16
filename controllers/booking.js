@@ -54,24 +54,14 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ err: 'Provider has no availability configured' });
     }
 
-    console.log('📅 Booking date parsed:', bookingDate.toDateString());
-
     // Find all availabilities and filter manually by date string (avoid timezone issues)
     const allProviderAvailabilities = await Availability.find({ providerId: providerId });
-    console.log('🔍 Total availability entries for provider:', allProviderAvailabilities.length);
 
     const providerAvailabilityForDate = allProviderAvailabilities.find(avail => {
       return avail.date.toDateString() === bookingDate.toDateString();
     });
 
-    console.log('✅ Found matching availability:', providerAvailabilityForDate);
-
     if (!providerAvailabilityForDate) {
-      console.log('❌ All availability dates found:', allProviderAvailabilities.map(a => ({
-        _id: a._id,
-        date: a.date,
-        dateStr: `${a.date.getFullYear()}-${a.date.getMonth()}-${a.date.getDate()}`
-      })));
       return res.status(400).json({ err: 'No availability found for this date' });
     }
 
@@ -83,10 +73,7 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
-    console.log('✅ All validations passed, creating booking...');
-
     // 3. CONFLICT DETECTION: Check for existing bookings for the same service at the same time
-    console.log('🔍 Checking for conflicting bookings...');
     const existingBooking = await Booking.findOne({
       serviceId: serviceId,
       date: bookingDate,
@@ -94,18 +81,15 @@ router.post('/', verifyToken, async (req, res) => {
     });
 
     if (existingBooking) {
-      console.log('❌ Found conflicting booking:', existingBooking);
       return res.status(409).json({ err: 'This service time slot is already booked' });
     }
 
-    console.log('✅ No conflicts, creating booking...');
     const created = await Booking.create({
       serviceId,
       customerId,
       providerId,
       date: bookingDate,
     });
-    console.log('✅ Booking created successfully:', created);
 
     return res.status(201).json(created);
   } catch (err) {
@@ -135,7 +119,6 @@ router.get('/my-bookings', verifyToken, async (req, res) => {
 
     return res.json(bookings);
   } catch (err) {
-    console.error('Customer bookings fetch error:', err);
     return res.status(500).json({ err: 'Failed to fetch bookings' });
   }
 });
@@ -160,7 +143,6 @@ router.get('/provider-bookings', verifyToken, async (req, res) => {
 
     return res.json(bookings);
   } catch (err) {
-    console.error('Provider bookings fetch error:', err);
     return res.status(500).json({ err: 'Failed to fetch bookings' });
   }
 });
