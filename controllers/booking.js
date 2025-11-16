@@ -197,26 +197,13 @@ router.patch('/:bookingId', verifyToken, async (req, res) => {
     const userId = req.user._id;
     const userRole = req.user.role;
 
-    console.log('🔐 Authorization check for booking update:');
-    console.log('- Logged User ID:', userId);
-    console.log('- Logged User Role:', userRole);
-    console.log('- Booking CustomerId:', existing.customerId);
-    console.log('- Booking ProviderId:', existing.providerId);
-
     //permission - use ObjectId equals for proper comparison
     const isCustomer = userId.equals(existing.customerId);
     const isProvider = userId.equals(existing.providerId);
 
-    console.log('- isCustomer check:', isCustomer);
-    console.log('- isProvider check:', isProvider);
-    console.log('- isAdmin check:', userRole === 'admin');
-
     if (!isCustomer && !isProvider && userRole !== 'admin') {
-      console.log('❌ Authorization failed: Not allowed to update');
       return res.status(403).json({ err: 'Not authorized to update this booking' });
     }
-
-    console.log('✅ Authorization passed');
 
     const updates = { ...req.body };
     delete updates._id;
