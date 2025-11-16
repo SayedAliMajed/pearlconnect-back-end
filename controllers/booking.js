@@ -27,8 +27,22 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ err: 'Booking date must be in the future' });
     }
 
-    // Get date components for validation
-    const bookingTime = bookingDate.toTimeString().substring(0, 5); // HH:MM
+    // Parse booking time from 12-hour format to 24-hour HH:MM
+    const convertTo24Hour = (timeStr) => {
+      if (timeStr.includes('AM') || timeStr.includes('PM')) {
+        // Parse 12-hour format like "3:00 PM"
+        const [time12, period] = timeStr.split(' ');
+        let [hours, minutes] = time12.split(':').map(Number);
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      } else {
+        // Already in 24-hour format
+        return timeStr;
+      }
+    };
+
+    const bookingTime = convertTo24Hour(body.time || bookingDate.toTimeString().substring(0, 5));
 
     // Import Availability model for validations
     const Availability = require('../models/availability');
@@ -42,13 +56,33 @@ router.post('/', verifyToken, async (req, res) => {
 
     // Temporarily skip detailed time validations for develop testing
     // Add check: Ensure booking time is within provider's available time
-    const bookingDateOnly = new Date(bookingDate.toDateString());
-    const providerAvailabilityForDate = await Availability.findOne({
-      providerId: providerId,
-      date: bookingDateOnly
+
+    // Normalize date for comparison (avoid timezone issues)
+    const bookingYear = bookingDate.getFullYear();
+    const bookingMonth = bookingDate.getMonth();
+    const bookingDay = bookingDate.getDate();
+
+    console.log('📅 Booking date parsed:', bookingYear, bookingMonth, bookingDay);
+
+    // Find all availabilities and filter manually by date
+    const allProviderAvailabilities = await Availability.find({ providerId: providerId });
+    console.log('🔍 Total availability entries for provider:', allProviderAvailabilities.length);
+
+    const providerAvailabilityForDate = allProviderAvailabilities.find(avail => {
+      const availYear = avail.date.getFullYear();
+      const availMonth = avail.date.getMonth();
+      const availDay = avail.date.getDate();
+      return availYear === bookingYear && availMonth === bookingMonth && availDay === bookingDay;
     });
 
+    console.log('✅ Found matching availability:', providerAvailabilityForDate);
+
     if (!providerAvailabilityForDate) {
+      console.log('❌ All availability dates found:', allProviderAvailabilities.map(a => ({
+        _id: a._id,
+        date: a.date,
+        dateStr: `${a.date.getFullYear()}-${a.date.getMonth()}-${a.date.getDate()}`
+      })));
       return res.status(400).json({ err: 'No availability found for this date' });
     }
 
