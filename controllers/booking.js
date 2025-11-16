@@ -7,12 +7,12 @@ const router = express.Router();
 
 
 //CREATE a booking (customer only)
- 
+
 router.post('/', verifyToken, async (req, res) => {
   try {
     const { serviceId, customerId, providerId, date } = req.body;
 
-    if (req.user._id !== customerId && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== customerId && req.user.role !== 'admin') {
       return res.status(403).json({ err: 'You can only book as a customer' });
     }
 
@@ -20,23 +20,95 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ err: 'serviceId, customerId, providerId, and date are required' });
     }
 
-    // Validate booking date is in the future
+    // Parse booking datetime
     const bookingDate = new Date(date);
     const now = new Date();
     if (bookingDate <= now) {
       return res.status(400).json({ err: 'Booking date must be in the future' });
     }
 
+    // Get date components for validation
+    const bookingTime = bookingDate.toTimeString().substring(0, 5); // HH:MM
+
+    // Import Availability model for validations
+    const Availability = require('../models/availability');
+
+    // 1. SERVICE AVAILABILITY CHECK: Verify service has availability
+    const serviceAvailability = await Availability.findOne({ serviceId: serviceId });
+
+    if (!serviceAvailability) {
+      return res.status(400).json({ err: 'Service has no availability configured' });
+    }
+
+    // Check minimum advance booking
+    const diffMinutes = (bookingDate - now) / (1000 * 60);
+    if (diffMinutes < serviceAvailability.minimumAdvanceBooking) {
+      return res.status(400).json({
+        err: `Booking must be made at least ${serviceAvailability.minimumAdvanceBooking} minutes in advance`
+      });
+    }
+
+    // Get day of week for schedule check
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const dayOfWeek = dayNames[bookingDate.getDay()];
+    const daySchedule = serviceAvailability.workingHours[dayOfWeek];
+
+    if (!daySchedule || !daySchedule.enabled) {
+      return res.status(400).json({ err: `Service is not available on ${dayOfWeek}s` });
+    }
+
+    // Check if booking time is within working hours
+    if (bookingTime < daySchedule.startTime || bookingTime >= daySchedule.endTime) {
+      return res.status(400).json({
+        err: `Booking time ${bookingTime} is outside service hours for ${dayOfWeek} (${daySchedule.startTime} - ${daySchedule.endTime})`
+      });
+    }
+
+    // Check if booking time is during break period
+    if (daySchedule.breakTimes && daySchedule.breakTimes.length > 0) {
+      for (const breakPeriod of daySchedule.breakTimes) {
+        const breakStart = breakPeriod.startTime;
+        const breakEnd = breakPeriod.endTime;
+        if (breakStart && breakEnd && bookingTime >= breakStart && bookingTime < breakEnd) {
+          return res.status(400).json({
+            err: `Booking time ${bookingTime} falls during break period (${breakStart} - ${breakEnd})`
+          });
+        }
+      }
+    }
+
+    // 2. DURATION VALIDATION: Ensure booking time aligns with service appointment duration
+    const [hours, minutes] = bookingTime.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    const slotDuration = serviceAvailability.appointmentDuration;
+
+    if (totalMinutes % slotDuration !== 0) {
+      return res.status(400).json({
+        err: `Booking time ${bookingTime} does not align with ${slotDuration}-minute appointment slots`
+      });
+    }
+
+    // 3. CONFLICT DETECTION: Check for existing bookings for the same service at the same time
+    const existingBooking = await Booking.findOne({
+      serviceId: serviceId,
+      date: bookingDate,
+      status: { $in: ['pending', 'confirmed'] } // Only check active bookings
+    });
+
+    if (existingBooking) {
+      return res.status(409).json({ err: 'This service time slot is already booked' });
+    }
+
     const created = await Booking.create({
       serviceId,
       customerId,
       providerId,
-      date,
+      date: bookingDate,
     });
 
     return res.status(201).json(created);
   } catch (err) {
-    console.error(err);
+    console.error('Booking creation error:', err);
     return res.status(500).json({ err: 'Failed to create booking' });
   }
 });

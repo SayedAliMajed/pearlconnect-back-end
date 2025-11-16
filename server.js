@@ -21,6 +21,8 @@ const categoriesCtrl = require('./controllers/categories');
 const reviewsCtrl = require('./controllers/reviews');
 const bookingsCtrl = require('./controllers/booking');
 const providersCtrl = require('./controllers/providers');
+const availabilityCtrl = require('./controllers/availability');
+const { getProviderAvailability } = require('./controllers/providers');
 
 // MiddleWare
 const verifyToken = require('./middleware/verify-token');
@@ -49,6 +51,9 @@ app.get('/', (req, res) => {
 app.use('/auth', authCtrl);
 app.use('/services', servicesCtrl);
 
+// Public provider availability (no auth)
+app.get('/providers/:providerId/availability', getProviderAvailability);
+
 // Protected Routes - apply verifyToken middleware only to these
 app.use('/users', verifyToken, usersCtrl);
 app.use('/message', verifyToken, messageCtrl);
@@ -56,6 +61,7 @@ app.use('/categories', verifyToken, categoriesCtrl);
 app.use('/reviews', verifyToken, reviewsCtrl);
 app.use('/bookings', verifyToken, bookingsCtrl);
 app.use('/providers', verifyToken, providersCtrl);
+app.use('/availability', verifyToken, availabilityCtrl);
 
 app.use(cors({
   origin: [

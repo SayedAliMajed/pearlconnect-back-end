@@ -128,7 +128,7 @@ router.put('/:serviceId', verifyToken, async (req, res) => {
     if (!existing) return res.status(404).json({ err: 'Service not found' });
 
     // check ownership
-    if (req.user._id !== existing.provider.toString() && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== existing.provider.toString() && req.user.role !== 'admin') {
       return res.status(403).json({ err: 'You are not authorized to update this service' });
     }
 
@@ -164,7 +164,7 @@ router.delete('/:serviceId', verifyToken, async (req, res) => {
     if (!service) return res.status(404).json({ err: 'Service not found' });
 
     // if user is admin or the service owner
-    if (req.user.role !== 'admin' && req.user._id !== service.provider.toString()) {
+    if (req.user.role !== 'admin' && req.user._id.toString() !== service.provider.toString()) {
       return res.status(403).json({ err: 'You are not authorized to delete this service' });
     }
 
