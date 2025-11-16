@@ -87,6 +87,30 @@ app.get('/my-bookings', verifyToken, async (req, res) => {
   }
 });
 
+// Quick fix for frontend calling /provider-bookings instead of /bookings/provider-bookings
+app.get('/provider-bookings', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Only allow providers or admins
+    if (userRole !== 'provider' && userRole !== 'admin') {
+      return res.status(403).json({ err: 'Access denied' });
+    }
+
+    const Booking = require('./models/booking');
+    const bookings = await Booking.find({ providerId: userId })
+      .populate('serviceId', 'title price')
+      .populate('customerId', 'name email')
+      .populate('providerId', 'name email')
+      .sort({ createdAt: -1 });
+
+    return res.json(bookings);
+  } catch (err) {
+    return res.status(500).json({ err: 'Failed to fetch bookings' });
+  }
+});
+
 app.use(cors({
   origin: [
     'hhttps://pearlconnect-front-end.vercel.app/', 
