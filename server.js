@@ -22,7 +22,6 @@ const reviewsCtrl = require('./controllers/reviews');
 const bookingsCtrl = require('./controllers/booking');
 const providersCtrl = require('./controllers/providers');
 const availabilityCtrl = require('./controllers/availability');
-const { getProviderAvailability } = require('./controllers/providers');
 
 // MiddleWare
 const verifyToken = require('./middleware/verify-token');
@@ -50,9 +49,6 @@ app.get('/', (req, res) => {
 // Public
 app.use('/auth', authCtrl);
 app.use('/services', servicesCtrl);
-
-// Public provider availability (no auth)
-app.get('/providers/:providerId/availability', getProviderAvailability);
 
 // Protected Routes - apply verifyToken middleware only to these
 app.use('/users', verifyToken, usersCtrl);
