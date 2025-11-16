@@ -12,7 +12,7 @@ router.post('/', verifyToken, async (req, res) => {
   try {
     const { serviceId, customerId, providerId, date } = req.body;
 
-    if (req.user._id !== customerId && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== customerId && req.user.role !== 'admin') {
       return res.status(403).json({ err: 'You can only book as a customer' });
     }
 
