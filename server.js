@@ -21,6 +21,7 @@ const categoriesCtrl = require('./controllers/categories');
 const reviewsCtrl = require('./controllers/reviews');
 const bookingsCtrl = require('./controllers/booking');
 const providersCtrl = require('./controllers/providers');
+const availabilityCtrl = require('./controllers/availability');
 const { getProviderAvailability } = require('./controllers/providers');
 
 // MiddleWare
@@ -60,6 +61,7 @@ app.use('/categories', verifyToken, categoriesCtrl);
 app.use('/reviews', verifyToken, reviewsCtrl);
 app.use('/bookings', verifyToken, bookingsCtrl);
 app.use('/providers', verifyToken, providersCtrl);
+app.use('/availability', verifyToken, availabilityCtrl);
 
 app.use(cors({
   origin: [
