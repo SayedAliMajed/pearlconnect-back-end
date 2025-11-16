@@ -36,8 +36,6 @@ router.post('/availability', verifyToken, async (req, res) => {
     let targetProviderId, date, openingTime, closingTime, duration, breakTimesArray, isRepeating;
 
     try {
-        console.log('Availability POST received:', req.body);
-
         // Map frontend field names to backend expectations
         const body = req.body;
         date = body.date;
@@ -48,8 +46,6 @@ router.post('/availability', verifyToken, async (req, res) => {
         const breakStartTime = body.breakStartTime || body.breakStart;
         const breakEndTime = body.breakEndTime || body.breakEnd;
         isRepeating = body.isRepeating !== undefined ? body.isRepeating : (body.isRecurring || false);
-
-        console.log('Mapped fields:', { date, openingTime, closingTime, duration, breakStartTime, breakEndTime, isRepeating });
 
         // Determine providerId - providers can only set their own, admins can set any
         if (req.user.role === 'provider') {
@@ -129,7 +125,6 @@ router.post('/availability', verifyToken, async (req, res) => {
 
     // Handle unique index violations
     if (err.code === 11000) {
-      console.log('Duplicate key error - trying to use existing availability');
       // Try to find and update existing availability
       try {
         let existing = await Availability.findOne({
@@ -138,7 +133,6 @@ router.post('/availability', verifyToken, async (req, res) => {
         });
 
         if (existing) {
-          console.log('Updating existing availability');
           existing.openingTime = openingTime;
           existing.closingTime = closingTime;
           existing.duration = parseInt(duration);

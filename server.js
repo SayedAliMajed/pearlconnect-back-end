@@ -76,5 +76,5 @@ app.use(cors({
 const io = initializeSocket(server);
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`PearlConnect server running on port ${PORT}`);
 });
