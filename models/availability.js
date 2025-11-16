@@ -10,50 +10,44 @@ const BreakTimeSchema = new mongoose.Schema({
     }
 });
 
-const DayScheduleSchema = new mongoose.Schema({
-    enabled: {
+const availabilitySchema = new mongoose.Schema({
+    date: {
+        type: Date,
+        required: true,
+        index: true,
+    },
+    openingTime: {
+        type: String,
+        required: true,
+    },
+    closingTime: {
+        type: String,
+        required: true,
+    },
+    duration: {
+        type: Number,
+        required: true,
+    },
+    providerId: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true,
+    },
+    userId: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true,
+    },
+    isRepeating: {
         type: Boolean,
         default: false,
-    },
-    startTime: {
-        type: String,
-        default: '09:00',
-    },
-    endTime: {
-        type: String,
-        default: '17:00',
     },
     breakTimes: [BreakTimeSchema]
 });
 
-const availabilitySchema = new mongoose.Schema({
-    serviceId: {
-        type: Schema.Types.ObjectId,
-        ref: 'Service',
-        required: true,
-        index: true,
-        unique: true,
-    },
-    appointmentDuration: {
-        type: Number,
-        required: true,
-        default: 60, // minutes
-    },
-    minimumAdvanceBooking: {
-        type: Number,
-        default: 60, // minutes
-    },
-    workingHours: {
-        sunday: DayScheduleSchema,
-        monday: DayScheduleSchema,
-        tuesday: DayScheduleSchema,
-        wednesday: DayScheduleSchema,
-        thursday: DayScheduleSchema,
-        friday: DayScheduleSchema,
-        saturday: DayScheduleSchema,
-    }
-});
-
+availabilitySchema.index({ providerId: 1, date: 1 }, { unique: true });
 const Availability = mongoose.model('Availability', availabilitySchema);
 
 module.exports = Availability;
