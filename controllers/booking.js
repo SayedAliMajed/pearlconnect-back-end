@@ -42,7 +42,7 @@ router.post('/', verifyToken, async (req, res) => {
       }
     };
 
-    const bookingTime = convertTo24Hour(body.time || bookingDate.toTimeString().substring(0, 5));
+    const bookingTime = convertTo24Hour(req.body.time || bookingDate.toTimeString().substring(0, 5));
 
     // Import Availability model for validations
     const Availability = require('../models/availability');
@@ -54,25 +54,14 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ err: 'Provider has no availability configured' });
     }
 
-    // Temporarily skip detailed time validations for develop testing
-    // Add check: Ensure booking time is within provider's available time
+    console.log('📅 Booking date parsed:', bookingDate.toDateString());
 
-    // Normalize date for comparison (avoid timezone issues)
-    const bookingYear = bookingDate.getFullYear();
-    const bookingMonth = bookingDate.getMonth();
-    const bookingDay = bookingDate.getDate();
-
-    console.log('📅 Booking date parsed:', bookingYear, bookingMonth, bookingDay);
-
-    // Find all availabilities and filter manually by date
+    // Find all availabilities and filter manually by date string (avoid timezone issues)
     const allProviderAvailabilities = await Availability.find({ providerId: providerId });
     console.log('🔍 Total availability entries for provider:', allProviderAvailabilities.length);
 
     const providerAvailabilityForDate = allProviderAvailabilities.find(avail => {
-      const availYear = avail.date.getFullYear();
-      const availMonth = avail.date.getMonth();
-      const availDay = avail.date.getDate();
-      return availYear === bookingYear && availMonth === bookingMonth && availDay === bookingDay;
+      return avail.date.toDateString() === bookingDate.toDateString();
     });
 
     console.log('✅ Found matching availability:', providerAvailabilityForDate);
@@ -94,7 +83,10 @@ router.post('/', verifyToken, async (req, res) => {
       });
     }
 
+    console.log('✅ All validations passed, creating booking...');
+
     // 3. CONFLICT DETECTION: Check for existing bookings for the same service at the same time
+    console.log('🔍 Checking for conflicting bookings...');
     const existingBooking = await Booking.findOne({
       serviceId: serviceId,
       date: bookingDate,
@@ -102,15 +94,18 @@ router.post('/', verifyToken, async (req, res) => {
     });
 
     if (existingBooking) {
+      console.log('❌ Found conflicting booking:', existingBooking);
       return res.status(409).json({ err: 'This service time slot is already booked' });
     }
 
+    console.log('✅ No conflicts, creating booking...');
     const created = await Booking.create({
       serviceId,
       customerId,
       providerId,
       date: bookingDate,
     });
+    console.log('✅ Booking created successfully:', created);
 
     return res.status(201).json(created);
   } catch (err) {
