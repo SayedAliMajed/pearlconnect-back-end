@@ -49,11 +49,11 @@ app.get('/', (req, res) => {
 // Public
 app.use('/auth', authCtrl);
 app.use('/services', servicesCtrl);
+app.use('/categories', categoriesCtrl); // Public - anyone can view categories
 
 // Protected Routes - apply verifyToken middleware only to these
 app.use('/users', verifyToken, usersCtrl);
 app.use('/message', verifyToken, messageCtrl);
-app.use('/categories', verifyToken, categoriesCtrl);
 app.use('/reviews', verifyToken, reviewsCtrl);
 app.use('/bookings', verifyToken, bookingsCtrl);
 app.use('/providers', verifyToken, providersCtrl);
