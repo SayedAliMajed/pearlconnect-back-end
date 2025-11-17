@@ -20,10 +20,10 @@ router.post('/', verifyToken, checkRole(['admin']), async (req, res) => {
 		if (existing) return res.status(409).json({ err: 'Category already exists' });
 		const created = await Category.create({ name });
 		return res.status(201).json(created);
-	} catch (err) {
-		console.log(err);
+  } catch (err) {
+		console.error(err);
 		return res.status(500).json({ err: 'Failed to create category' });
-	}
+  }
 });
 
 // list all the categories :)

@@ -61,8 +61,8 @@ router.post('/sign-up', async (req, res) => {
 
     res.status(201).json({ token, user: newUser });
   } catch (err) {
-    console.log('Sign-up error:', err);
-    
+    console.error('Sign-up error:', err);
+
     // Handle specific validation errors
     if (err.name === 'ValidationError') {
       const messages = Object.values(err.errors).map(error => error.message);
@@ -102,7 +102,7 @@ router.post('/sign-in', async (req, res) => {
 
     res.json({ token, user: userInDatabase });
   } catch (err) {
-    console.log(err);
+    console.error(err);
     res.status(500).json({ err: 'Invalid Username or Password' });
   }
 });
