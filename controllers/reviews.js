@@ -23,7 +23,12 @@ router.post('/', verifyToken, async (req, res) => {
 		}
 		if (!comment) return res.status(400).json({ err: 'comment is required' });
 
-		const created = await Review.create({ bookingId, reviewerId, providerId, serviceId, rating, comment });
+    // Only include bookingId if it's provided (optional for general reviews)
+    const reviewData = { reviewerId, providerId, serviceId, rating, comment };
+    if (bookingId) {
+      reviewData.bookingId = bookingId;
+    }
+    const created = await Review.create(reviewData);
 		return res.status(201).json(created);
 	} catch (err) {
 		console.log(err);
