@@ -13,9 +13,9 @@ router.post('/', verifyToken, async (req, res) => {
 		// Auto-set reviewerId from authenticated user (prevents spoofing)
 		const reviewerId = req.user._id;
 
-		// basic validations (keep it simple and consistent with other controllers)
-		if (!bookingId || !providerId || !serviceId) {
-			return res.status(400).json({ err: 'bookingId, providerId, and serviceId are required' });
+		// basic validations - allow general reviews (bookingId optional)
+		if (!providerId || !serviceId) {
+			return res.status(400).json({ err: 'providerId and serviceId are required' });
 		}
 		if (rating == null) return res.status(400).json({ err: 'rating is required' });
 		if (typeof rating !== 'number' || rating < 1 || rating > 5) {

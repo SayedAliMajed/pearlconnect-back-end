@@ -19,7 +19,7 @@ router.get('/service/:serviceId', verifyToken, async (req, res) => {
     }
 
     // Only provider of the service or admin can view
-    if (req.user.role !== 'admin' && req.user._id.toString() !== service.providerId.toString()) {
+    if (req.user.role !== 'admin' && req.user._id.toString() !== service.provider._id.toString()) {
       return res.status(403).json({ err: 'Access denied' });
     }
 
@@ -47,7 +47,7 @@ router.post('/service/:serviceId', verifyToken, async (req, res) => {
       return res.status(404).json({ err: 'Service not found' });
     }
 
-    if (req.user.role !== 'admin' && req.user._id.toString() !== service.providerId.toString()) {
+    if (req.user.role !== 'admin' && req.user._id.toString() !== service.provider._id.toString()) {
       return res.status(403).json({ err: 'Only service provider can update availability' });
     }
 
@@ -96,7 +96,7 @@ router.patch('/service/:serviceId', verifyToken, async (req, res) => {
       return res.status(404).json({ err: 'Service not found' });
     }
 
-    if (req.user.role !== 'admin' && req.user._id.toString() !== service.providerId.toString()) {
+    if (req.user.role !== 'admin' && req.user._id.toString() !== service.provider._id.toString()) {
       return res.status(403).json({ err: 'Access denied' });
     }
 
@@ -127,7 +127,7 @@ router.delete('/service/:serviceId', verifyToken, async (req, res) => {
       return res.status(404).json({ err: 'Service not found' });
     }
 
-    if (req.user.role !== 'admin' && req.user._id.toString() !== service.providerId.toString()) {
+    if (req.user.role !== 'admin' && req.user._id.toString() !== service.provider._id.toString()) {
       return res.status(403).json({ err: 'Access denied' });
     }
 
