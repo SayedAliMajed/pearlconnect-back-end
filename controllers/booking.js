@@ -147,14 +147,30 @@ router.get('/provider-bookings', verifyToken, async (req, res) => {
   }
 });
 
-//LIST all bookings (admin only)
+//LIST all bookings (role-based access)
 
-router.get('/', verifyToken, checkRole(['admin']), async (req, res) => {
+router.get('/', verifyToken, async (req, res) => {
   try {
-    const bookings = await Booking.find({})
+    const userId = req.user._id;
+    const userRole = req.user.role;
+    console.log(`DEBUG: GET /bookings called by user ${userId} with role '${userRole}'`);
+
+    let filter = {};
+    if (userRole === 'admin') {
+      // Admin sees all (no filter)
+    } else if (userRole === 'provider') {
+      // Providers see received bookings (where they are the provider)
+      filter.providerId = userId;
+    } else if (userRole === 'customer') {
+      // Customers see placed bookings (where they are the customer)
+      filter.customerId = userId;
+    }
+
+    const bookings = await Booking.find(filter)
       .populate('serviceId', 'title price')
       .populate('customerId', 'name email')
-      .populate('providerId', 'name email');
+      .populate('providerId', 'name email')
+      .sort({ createdAt: -1 }); // Most recent first
 
     return res.json(bookings);
   } catch (err) {
@@ -213,6 +229,50 @@ router.patch('/:bookingId', verifyToken, async (req, res) => {
     delete updates.createdAt;
 
     // basic validation for status 
+    if (updates.status) {
+      const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
+      if (!validStatuses.includes(updates.status)) {
+        return res.status(400).json({ err: 'Invalid status. Must be: pending, confirmed, completed, or cancelled' });
+      }
+    }
+
+    const updated = await Booking.findByIdAndUpdate(
+      req.params.bookingId,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    return res.json(updated);
+  } catch (err) {
+    return res.status(500).json({ err: err.message });
+  }
+});
+
+
+router.put('/:bookingId', verifyToken, async (req, res) => {
+  try {
+    const existing = await Booking.findById(req.params.bookingId);
+    if (!existing) return res.status(404).json({ err: 'Booking not found' });
+
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    //permission - use string comparison for reliable ObjectId matching
+    const isCustomer = userId.toString() === existing.customerId.toString();
+    const isProvider = userId.toString() === existing.providerId.toString();
+
+    if (!isCustomer && !isProvider && userRole !== 'admin') {
+      return res.status(403).json({ err: 'Not authorized to update this booking' });
+    }
+
+    const updates = { ...req.body };
+    delete updates._id;
+    delete updates.customerId;
+    delete updates.providerId;
+    delete updates.serviceId;
+    delete updates.createdAt;
+
+    // basic validation for status
     if (updates.status) {
       const validStatuses = ['pending', 'confirmed', 'completed', 'cancelled'];
       if (!validStatuses.includes(updates.status)) {

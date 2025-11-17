@@ -88,6 +88,7 @@ app.get('/provider-bookings', verifyToken, async (req, res) => {
   try {
     const userId = req.user._id;
     const userRole = req.user.role;
+    console.log(`DEBUG: GET /provider-bookings called by user ${userId} with role '${userRole}'`);
 
     // Only allow providers or admins
     if (userRole !== 'provider' && userRole !== 'admin') {
@@ -104,6 +105,30 @@ app.get('/provider-bookings', verifyToken, async (req, res) => {
     return res.json(bookings);
   } catch (err) {
     return res.status(500).json({ err: 'Failed to fetch bookings' });
+  }
+});
+
+// Quick fix for frontend calling /provider-reviews instead of /reviews/provider-reviews
+app.get('/provider-reviews', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Only allow providers or admins
+    if (userRole !== 'provider' && userRole !== 'admin') {
+      return res.status(403).json({ err: 'Access denied' });
+    }
+
+    const Review = require('./models/reviews');
+    const reviews = await Review.find({ providerId: userId })
+      .populate('reviewerId', 'name')
+      .populate('serviceId', 'title')
+      .populate('bookingId')
+      .sort({ createdAt: -1 });
+
+    return res.json(reviews);
+  } catch (err) {
+    return res.status(500).json({ err: 'Failed to fetch reviews' });
   }
 });
 
