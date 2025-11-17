@@ -48,8 +48,10 @@ app.get('/', (req, res) => {
 
 // Public
 app.use('/auth', authCtrl);
-app.use('/services', servicesCtrl);
-app.use('/categories', categoriesCtrl); // Public - anyone can view categories
+
+// Private routes - require authentication
+app.use('/services', verifyToken, servicesCtrl);
+app.use('/categories', verifyToken, categoriesCtrl);
 
 // Protected Routes - apply verifyToken middleware only to these
 app.use('/users', verifyToken, usersCtrl);
