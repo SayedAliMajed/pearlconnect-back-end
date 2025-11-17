@@ -43,6 +43,29 @@ router.get('/', async (req, res) => {
 	}
 });
 
+// LIST provider's own reviews (provider only)
+router.get('/provider-reviews', verifyToken, async (req, res) => {
+	try {
+		const userId = req.user._id;
+		const userRole = req.user.role;
+
+		// Only allow providers or admins
+		if (userRole !== 'provider' && userRole !== 'admin') {
+			return res.status(403).json({ err: 'Access denied' });
+		}
+
+		const reviews = await Review.find({ providerId: userId })
+			.populate('reviewerId', 'name')
+			.populate('serviceId', 'title')
+			.populate('bookingId')
+			.sort({ createdAt: -1 });
+
+		return res.json(reviews);
+	} catch (err) {
+		return res.status(500).json({ err: 'Failed to fetch reviews' });
+	}
+});
+
 // get one review by id (public access)
 router.get('/:reviewId', async (req, res) => {
 	try {
