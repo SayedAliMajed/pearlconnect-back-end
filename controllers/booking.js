@@ -27,64 +27,49 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ err: 'Booking date must be in the future' });
     }
 
-    // Get date components for validation
-    const bookingTime = bookingDate.toTimeString().substring(0, 5); // HH:MM
+    // Parse booking time from 12-hour format to 24-hour HH:MM
+    const convertTo24Hour = (timeStr) => {
+      if (timeStr.includes('AM') || timeStr.includes('PM')) {
+        // Parse 12-hour format like "3:00 PM"
+        const [time12, period] = timeStr.split(' ');
+        let [hours, minutes] = time12.split(':').map(Number);
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      } else {
+        // Already in 24-hour format
+        return timeStr;
+      }
+    };
+
+    const bookingTime = convertTo24Hour(req.body.time || bookingDate.toTimeString().substring(0, 5));
 
     // Import Availability model for validations
     const Availability = require('../models/availability');
 
-    // 1. SERVICE AVAILABILITY CHECK: Verify service has availability
-    const serviceAvailability = await Availability.findOne({ serviceId: serviceId });
+    // 1. PROVIDER AVAILABILITY CHECK: Temporarily check provider for develop testing
+    const providerAvailability = await Availability.findOne({ providerId: providerId });
 
-    if (!serviceAvailability) {
-      return res.status(400).json({ err: 'Service has no availability configured' });
+    if (!providerAvailability) {
+      return res.status(400).json({ err: 'Provider has no availability configured' });
     }
 
-    // Check minimum advance booking
-    const diffMinutes = (bookingDate - now) / (1000 * 60);
-    if (diffMinutes < serviceAvailability.minimumAdvanceBooking) {
+    // Find all availabilities and filter manually by date string (avoid timezone issues)
+    const allProviderAvailabilities = await Availability.find({ providerId: providerId });
+
+    const providerAvailabilityForDate = allProviderAvailabilities.find(avail => {
+      return avail.date.toDateString() === bookingDate.toDateString();
+    });
+
+    if (!providerAvailabilityForDate) {
+      return res.status(400).json({ err: 'No availability found for this date' });
+    }
+
+    // Basic time validation
+    if (bookingTime < providerAvailabilityForDate.openingTime ||
+        bookingTime >= providerAvailabilityForDate.closingTime) {
       return res.status(400).json({
-        err: `Booking must be made at least ${serviceAvailability.minimumAdvanceBooking} minutes in advance`
-      });
-    }
-
-    // Get day of week for schedule check
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayOfWeek = dayNames[bookingDate.getDay()];
-    const daySchedule = serviceAvailability.workingHours[dayOfWeek];
-
-    if (!daySchedule || !daySchedule.enabled) {
-      return res.status(400).json({ err: `Service is not available on ${dayOfWeek}s` });
-    }
-
-    // Check if booking time is within working hours
-    if (bookingTime < daySchedule.startTime || bookingTime >= daySchedule.endTime) {
-      return res.status(400).json({
-        err: `Booking time ${bookingTime} is outside service hours for ${dayOfWeek} (${daySchedule.startTime} - ${daySchedule.endTime})`
-      });
-    }
-
-    // Check if booking time is during break period
-    if (daySchedule.breakTimes && daySchedule.breakTimes.length > 0) {
-      for (const breakPeriod of daySchedule.breakTimes) {
-        const breakStart = breakPeriod.startTime;
-        const breakEnd = breakPeriod.endTime;
-        if (breakStart && breakEnd && bookingTime >= breakStart && bookingTime < breakEnd) {
-          return res.status(400).json({
-            err: `Booking time ${bookingTime} falls during break period (${breakStart} - ${breakEnd})`
-          });
-        }
-      }
-    }
-
-    // 2. DURATION VALIDATION: Ensure booking time aligns with service appointment duration
-    const [hours, minutes] = bookingTime.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes;
-    const slotDuration = serviceAvailability.appointmentDuration;
-
-    if (totalMinutes % slotDuration !== 0) {
-      return res.status(400).json({
-        err: `Booking time ${bookingTime} does not align with ${slotDuration}-minute appointment slots`
+        err: `Booking time is outside provider hours (${providerAvailabilityForDate.openingTime} - ${providerAvailabilityForDate.closingTime})`
       });
     }
 
@@ -114,8 +99,56 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 
+//LIST customer bookings (customer only)
+
+router.get('/my-bookings', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Only allow customers or admins
+    if (!['customer', 'admin'].includes(userRole)) {
+      return res.status(403).json({ err: 'Access denied' });
+    }
+
+    const bookings = await Booking.find({ customerId: userId })
+      .populate('serviceId', 'title price')
+      .populate('customerId', 'name email')
+      .populate('providerId', 'name email')
+      .sort({ createdAt: -1 }); // Most recent first
+
+    return res.json(bookings);
+  } catch (err) {
+    return res.status(500).json({ err: 'Failed to fetch bookings' });
+  }
+});
+
+//LIST provider bookings (provider only)
+
+router.get('/provider-bookings', verifyToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const userRole = req.user.role;
+
+    // Only allow providers or admins
+    if (userRole !== 'provider' && userRole !== 'admin') {
+      return res.status(403).json({ err: 'Access denied' });
+    }
+
+    const bookings = await Booking.find({ providerId: userId })
+      .populate('serviceId', 'title price')
+      .populate('customerId', 'name email')
+      .populate('providerId', 'name email')
+      .sort({ createdAt: -1 });
+
+    return res.json(bookings);
+  } catch (err) {
+    return res.status(500).json({ err: 'Failed to fetch bookings' });
+  }
+});
+
 //LIST all bookings (admin only)
- 
+
 router.get('/', verifyToken, checkRole(['admin']), async (req, res) => {
   try {
     const bookings = await Booking.find({})
@@ -164,9 +197,9 @@ router.patch('/:bookingId', verifyToken, async (req, res) => {
     const userId = req.user._id;
     const userRole = req.user.role;
 
-    //permissionn 
-    const isCustomer = userId === existing.customerId.toString();
-    const isProvider = userId === existing.providerId.toString();
+    //permission - use string comparison for reliable ObjectId matching
+    const isCustomer = userId.toString() === existing.customerId.toString();
+    const isProvider = userId.toString() === existing.providerId.toString();
 
     if (!isCustomer && !isProvider && userRole !== 'admin') {
       return res.status(403).json({ err: 'Not authorized to update this booking' });
