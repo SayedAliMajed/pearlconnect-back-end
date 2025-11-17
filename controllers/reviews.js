@@ -8,16 +8,14 @@ const router = express.Router();
 // CREATE a review (authenticated users only)
 router.post('/', verifyToken, async (req, res) => {
 	try {
-		const { bookingId, reviewerId, providerId, serviceId, rating, comment } = req.body;
+		const { bookingId, providerId, serviceId, rating, comment } = req.body;
 
-		// Ensure the authenticated user is the reviewer
-		if (req.user._id !== reviewerId) {
-			return res.status(403).json({ err: 'You can only create reviews as yourself' });
-		}
+		// Auto-set reviewerId from authenticated user (prevents spoofing)
+		const reviewerId = req.user._id;
 
 		// basic validations (keep it simple and consistent with other controllers)
-		if (!bookingId || !reviewerId || !providerId || !serviceId) {
-			return res.status(400).json({ err: 'bookingId, reviewerId, providerId, and serviceId are required' });
+		if (!bookingId || !providerId || !serviceId) {
+			return res.status(400).json({ err: 'bookingId, providerId, and serviceId are required' });
 		}
 		if (rating == null) return res.status(400).json({ err: 'rating is required' });
 		if (typeof rating !== 'number' || rating < 1 || rating > 5) {
