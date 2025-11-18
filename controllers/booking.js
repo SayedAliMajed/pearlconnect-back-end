@@ -99,29 +99,7 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 
-//LIST customer bookings (customer only)
 
-router.get('/my-bookings', verifyToken, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const userRole = req.user.role;
-
-    // Only allow customers or admins
-    if (!['customer', 'admin'].includes(userRole)) {
-      return res.status(403).json({ err: 'Access denied' });
-    }
-
-    const bookings = await Booking.find({ customerId: userId })
-      .populate('serviceId', 'title price')
-      .populate('customerId', 'name email')
-      .populate('providerId', 'name email')
-      .sort({ createdAt: -1 }); // Most recent first
-
-    return res.json(bookings);
-  } catch (err) {
-    return res.status(500).json({ err: 'Failed to fetch bookings' });
-  }
-});
 
 //LIST provider bookings (provider only)
 
