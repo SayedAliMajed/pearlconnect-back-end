@@ -138,52 +138,6 @@ app.use('/categories', verifyToken, categoriesCtrl);  // Service categories (mad
 
 
 // =============================================================================
-// TEMPORARY ROUTES - Frontend compatibility fixes
-// =============================================================================
-// TODO: Move these to proper controller files to reduce code duplication
-
-
-
-/**
- * TEMPORARY ROUTE: Provider Bookings Endpoint
- * Quick compatibility fix for frontend expecting /provider-bookings instead of /bookings/provider-bookings
- *
- * GET /provider-bookings
- * - Purpose: Get all bookings received by authenticated provider
- * - Authentication: Required (provider or admin role)
- * - Returns: Array of booking objects with populated service/customer/provider details
- *
- * TODO: Remove this route and update frontend to use proper /bookings endpoint
- */
-app.get('/provider-bookings', verifyToken, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const userRole = req.user.role;
-    console.log(`DEBUG: GET /provider-bookings called by user ${userId} with role '${userRole}'`);
-
-    // Role-based access control: Only providers and admins can view provider bookings
-    if (userRole !== 'provider' && userRole !== 'admin') {
-      return res.status(403).json({ err: 'Access denied' });
-    }
-
-    // Query bookings where user is the provider
-    const Booking = require('./models/booking');
-    const bookings = await Booking.find({ providerId: userId })
-      .populate('serviceId', 'title price')     // Include service details
-      .populate('customerId', 'name email')     // Include customer info
-      .populate('providerId', 'name email')     // Include provider info
-      .sort({ createdAt: -1 });                 // Most recent first
-
-    return res.json(bookings);
-  } catch (err) {
-    console.error('Error fetching provider bookings:', err);
-    return res.status(500).json({ err: 'Failed to fetch bookings' });
-  }
-});
-
-
-
-// =============================================================================
 // CORS CONFIGURATION - Frontend communication setup
 // =============================================================================
 
@@ -192,12 +146,12 @@ app.get('/provider-bookings', verifyToken, async (req, res) => {
  * Allows requests from specified origins and enables credentials (cookies/JWT).
  *
  * Origins:
- * - Production frontend on Vercel
+ * - Production frontend on Netlify
  * - Local development environments
  */
 app.use(cors({
   origin: [
-    'https://pearlconnect-front-end.vercel.app/',  // Production frontend
+    'https://pearlconnect.netlify.app/',           // Production frontend on Netlify
     'http://localhost:3000',                        // Local API proxy
     'http://localhost:5173'                         // Vite dev server
   ],
