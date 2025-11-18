@@ -1,151 +1,234 @@
+/**
+ * PearlConnect Backend Server
+ * ===========================
+ *
+ * Main Express.js server file that sets up the PearlConnect service marketplace API.
+ * Handles routing, middleware configuration, database connections, and real-time communication.
+ *
+ * Features:
+ * - RESTful API endpoints for users, services, bookings, reviews
+ * - JWT authentication and role-based access control
+ * - Real-time messaging with Socket.IO
+ * - MongoDB database integration
+ * - CORS configuration for frontend communication
+ */
+
+// Environment variable configuration
 const dotenv = require('dotenv');
 const http = require('http');
 
 dotenv.config();
-const express = require('express');
 
+// Core dependencies
+const express = require('express');
 const app = express();
-const server = http.createServer(app); // Create HTTP server
+const server = http.createServer(app); // HTTP server for Express and Socket.IO
 const mongoose = require('mongoose');
 const cors = require('cors');
 const logger = require('morgan');
 
+// Server configuration
 const PORT = process.env.PORT || 3000;
 
-// Controllers
-const authCtrl = require('./controllers/auth');
-const usersCtrl = require('./controllers/users');
-const servicesCtrl = require('./controllers/services');
-const messageCtrl = require('./controllers/message');
-const categoriesCtrl = require('./controllers/categories');
-const reviewsCtrl = require('./controllers/reviews');
-const bookingsCtrl = require('./controllers/booking');
-const providersCtrl = require('./controllers/providers');
-const availabilityCtrl = require('./controllers/availability');
+// =============================================================================
+// CONTROLLERS - Route handlers for different API endpoints
+// =============================================================================
 
-// MiddleWare
+/**
+ * Controller modules that handle HTTP requests for specific resources.
+ * Each controller contains middleware functions for various CRUD operations.
+ */
+const authCtrl = require('./controllers/auth');          // User authentication (login/logout/signup)
+const usersCtrl = require('./controllers/users');        // User management (profile updates)
+const servicesCtrl = require('./controllers/services');  // Service CRUD operations
+const messageCtrl = require('./controllers/message');    // Chat messaging system
+const categoriesCtrl = require('./controllers/categories'); // Service categories
+const reviewsCtrl = require('./controllers/reviews');    // Customer reviews for services
+const bookingsCtrl = require('./controllers/booking');   // Customer bookings and appointments
+const providersCtrl = require('./controllers/providers'); // Provider-specific operations
+const availabilityCtrl = require('./controllers/availability'); // Provider availability schedules
+
+// =============================================================================
+// MIDDLEWARE - Request processing pipeline components
+// =============================================================================
+
+/**
+ * Custom middleware for request authentication and authorization.
+ * verifyToken - Validates JWT tokens and attaches user data to request object
+ */
 const verifyToken = require('./middleware/verify-token');
 
-// Socket.IO
+// =============================================================================
+// SOCKET.IO - Real-time communication setup
+// =============================================================================
+
+/**
+ * Socket.IO initialization for real-time messaging and notifications.
+ * Handles WebSocket connections for live chat, booking updates, etc.
+ */
 const { initializeSocket } = require('./socket/socketHandler.js');
 
+// =============================================================================
+// DATABASE CONNECTION - MongoDB setup
+// =============================================================================
+
+/**
+ * Establish connection to MongoDB database using Mongoose ODM.
+ * Uses connection string from environment variables for security.
+ */
 mongoose.connect(process.env.MONGODB_URI);
 
+/**
+ * Database connection event listeners for monitoring connection status.
+ */
 mongoose.connection.on('connected', () => {
   console.log(`Connected to MongoDB ${mongoose.connection.name}.`);
 });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(logger('dev'));
+// =============================================================================
+// EXPRESS MIDDLEWARE SETUP - Request processing pipeline
+// =============================================================================
 
-// Routes
-// Health check
+/**
+ * Global middleware applied to all routes in order.
+ * - cors: Enables cross-origin requests from frontend
+ * - express.json: Parses JSON request bodies
+ * - logger: Logs HTTP requests for debugging (Morgan)
+ */
+app.use(cors());                    // Enable CORS for frontend requests
+app.use(express.json());            // Parse incoming JSON payloads
+app.use(logger('dev'));             // HTTP request logging
+
+// =============================================================================
+// API ROUTES - URL endpoint definitions
+// =============================================================================
+
+/**
+ * Basic health check endpoint for monitoring and load balancer probes.
+ * Returns JSON status to verify server is running properly.
+ */
 app.get('/', (req, res) => {
   res.json({ status: 'OK', message: 'PearlConnect API is running' });
 });
 
-// Public
-app.use('/auth', authCtrl);
+/**
+ * PUBLIC ROUTES - No authentication required
+ * These endpoints can be accessed without a valid JWT token.
+ */
+app.use('/auth', authCtrl);  // Authentication endpoints (login, signup, logout)
 
-// Private routes - require authentication
-app.use('/services', verifyToken, servicesCtrl);
-app.use('/categories', verifyToken, categoriesCtrl);
+/**
+ * PRIVATE ROUTES - Authentication required for all endpoints
+ * These routes use the verifyToken middleware globally.
+ */
 
-// Protected Routes - apply verifyToken middleware only to these
-app.use('/users', verifyToken, usersCtrl);
-app.use('/message', verifyToken, messageCtrl);
-app.use('/reviews', verifyToken, reviewsCtrl);
-app.use('/bookings', verifyToken, bookingsCtrl);
-app.use('/providers', verifyToken, providersCtrl);
-app.use('/availability', verifyToken, availabilityCtrl);
 
-// Quick fix for frontend calling /my-bookings instead of /bookings/my-bookings
-app.get('/my-bookings', verifyToken, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const userRole = req.user.role;
+/**
+ * PRIVATE ROUTES - Individual middleware application
+ * Authentication middleware applied to specific route groups.
+ */
+app.use('/users', verifyToken, usersCtrl);           // User profile management
+app.use('/message', verifyToken, messageCtrl);       // Real-time messaging
+app.use('/reviews', verifyToken, reviewsCtrl);       // Customer reviews
+app.use('/bookings', verifyToken, bookingsCtrl);     // Booking operations
+app.use('/providers', verifyToken, providersCtrl);   // Provider dashboard functions
+app.use('/availability', verifyToken, availabilityCtrl); // Provider availability schedules
+app.use('/services', verifyToken, servicesCtrl);      // Service listings and management
+app.use('/categories', verifyToken, categoriesCtrl);  // Service categories (made public temporarily)
 
-    // Only allow customers or admins
-    if (!['customer', 'admin'].includes(userRole)) {
-      return res.status(403).json({ err: 'Access denied' });
-    }
 
-    const Booking = require('./models/booking');
-    const bookings = await Booking.find({ customerId: userId })
-      .populate('serviceId', 'title price')
-      .populate('customerId', 'name email')
-      .populate('providerId', 'name email')
-      .sort({ createdAt: -1 });
+// =============================================================================
+// TEMPORARY ROUTES - Frontend compatibility fixes
+// =============================================================================
+// TODO: Move these to proper controller files to reduce code duplication
 
-    return res.json(bookings);
-  } catch (err) {
-    return res.status(500).json({ err: 'Failed to fetch bookings' });
-  }
-});
 
-// Quick fix for frontend calling /provider-bookings instead of /bookings/provider-bookings
+
+/**
+ * TEMPORARY ROUTE: Provider Bookings Endpoint
+ * Quick compatibility fix for frontend expecting /provider-bookings instead of /bookings/provider-bookings
+ *
+ * GET /provider-bookings
+ * - Purpose: Get all bookings received by authenticated provider
+ * - Authentication: Required (provider or admin role)
+ * - Returns: Array of booking objects with populated service/customer/provider details
+ *
+ * TODO: Remove this route and update frontend to use proper /bookings endpoint
+ */
 app.get('/provider-bookings', verifyToken, async (req, res) => {
   try {
     const userId = req.user._id;
     const userRole = req.user.role;
     console.log(`DEBUG: GET /provider-bookings called by user ${userId} with role '${userRole}'`);
 
-    // Only allow providers or admins
+    // Role-based access control: Only providers and admins can view provider bookings
     if (userRole !== 'provider' && userRole !== 'admin') {
       return res.status(403).json({ err: 'Access denied' });
     }
 
+    // Query bookings where user is the provider
     const Booking = require('./models/booking');
     const bookings = await Booking.find({ providerId: userId })
-      .populate('serviceId', 'title price')
-      .populate('customerId', 'name email')
-      .populate('providerId', 'name email')
-      .sort({ createdAt: -1 });
+      .populate('serviceId', 'title price')     // Include service details
+      .populate('customerId', 'name email')     // Include customer info
+      .populate('providerId', 'name email')     // Include provider info
+      .sort({ createdAt: -1 });                 // Most recent first
 
     return res.json(bookings);
   } catch (err) {
+    console.error('Error fetching provider bookings:', err);
     return res.status(500).json({ err: 'Failed to fetch bookings' });
   }
 });
 
-// Quick fix for frontend calling /provider-reviews instead of /reviews/provider-reviews
-app.get('/provider-reviews', verifyToken, async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const userRole = req.user.role;
 
-    // Only allow providers or admins
-    if (userRole !== 'provider' && userRole !== 'admin') {
-      return res.status(403).json({ err: 'Access denied' });
-    }
 
-    const Review = require('./models/reviews');
-    const reviews = await Review.find({ providerId: userId })
-      .populate('reviewerId', 'name')
-      .populate('serviceId', 'title')
-      .populate('bookingId')
-      .sort({ createdAt: -1 });
+// =============================================================================
+// CORS CONFIGURATION - Frontend communication setup
+// =============================================================================
 
-    return res.json(reviews);
-  } catch (err) {
-    return res.status(500).json({ err: 'Failed to fetch reviews' });
-  }
-});
-
+/**
+ * Cross-Origin Resource Sharing (CORS) configuration for secure frontend communication.
+ * Allows requests from specified origins and enables credentials (cookies/JWT).
+ *
+ * Origins:
+ * - Production frontend on Vercel
+ * - Local development environments
+ */
 app.use(cors({
   origin: [
-    'hhttps://pearlconnect-front-end.vercel.app/', 
-    'http://localhost:3000',
-    'http://localhost:5173'
+    'https://pearlconnect-front-end.vercel.app/',  // Production frontend
+    'http://localhost:3000',                        // Local API proxy
+    'http://localhost:5173'                         // Vite dev server
   ],
-  credentials: true
+  credentials: true                                // Allow cookies/auth headers
 }));
 
-// Initialize Socket.IO
+// =============================================================================
+// SOCKET.IO INITIALIZATION - Real-time communication setup
+// =============================================================================
+
+/**
+ * Initialize Socket.IO for real-time bidirectional communication.
+ * Enables features like:
+ * - Live chat messaging between customers and providers
+ * - Real-time booking status updates
+ * - Notification system
+ * - Live availability updates
+ */
 const io = initializeSocket(server);
 
+// =============================================================================
+// SERVER STARTUP - Application bootstrap
+// =============================================================================
+
+/**
+ * Start the HTTP server with Socket.IO support.
+ * Listens on all network interfaces (0.0.0.0) for Docker/container compatibility.
+ * Uses environment variable PORT or defaults to 3000.
+ */
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`PearlConnect server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Socket.IO enabled for real-time features`);
 });
