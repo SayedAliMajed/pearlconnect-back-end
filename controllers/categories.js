@@ -53,7 +53,7 @@ router.get('/:categoryId', verifyToken, async (req, res) => {
 });
 
 // update a category name (admin only)
-router.patch('/:categoryId', verifyToken, checkRole(['admin']), async (req, res) => {
+router.put('/:categoryId', verifyToken, checkRole(['admin']), async (req, res) => {
 	try {
 		const { name } = req.body;
 		if (!name) return res.status(400).json({ err: 'name is required' });

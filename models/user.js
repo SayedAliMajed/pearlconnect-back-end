@@ -24,10 +24,15 @@ const userSchema = new mongoose.Schema({
     default: "customer"  // Set default role
   },
   profile: {
-    fullName: { 
+    firstName: { 
       type: String, 
       trim: true,
-      default: ""  // Optional string
+      required: true,
+    },
+    lastName: { 
+      type: String, 
+      trim: true,
+      required: true,
     },
     phone: { 
       type: String, 

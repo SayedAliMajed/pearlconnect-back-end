@@ -1,102 +1,258 @@
 const express = require('express');
 const Booking = require('../models/booking');
+const Availability = require('../models/availability');
 const verifyToken = require('../middleware/verify-token');
 const checkRole = require('../middleware/checkRole');
+
+/**
+ * Helper function to format dates in DD/MM/YYYY format for Bahrain/GCC display
+ * @param {Date} date - JavaScript Date object
+ * @returns {string} Formatted date string in DD/MM/YYYY format
+ */
+function formatDateDDMMYYYY(date) {
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = (date.getMonth() + 1).toString().padStart(2, '0'); // getMonth() is 0-based
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+}
 
 const router = express.Router();
 
 
-//CREATE a booking (customer only)
 
+
+/**
+ * CREATE a booking (customer only)
+ * ====================
+ *
+ * Creates a new service booking after validating:
+ * - User has customer or admin access
+ * - Service and provider exist
+ * - Requested time slot is available (uses global provider availability)
+ * - No booking conflicts exist
+ */
 router.post('/', verifyToken, async (req, res) => {
   try {
-    const { serviceId, customerId, providerId, date } = req.body;
+    const { serviceId, customerId, providerId, date, timeSlot } = req.body;
 
+    // =========================================================================
+    // AUTHORIZATION CHECK - Only customers or admins can book
+    // =========================================================================
     if (req.user._id.toString() !== customerId && req.user.role !== 'admin') {
       return res.status(403).json({ err: 'You can only book as a customer' });
     }
 
-    if (!serviceId || !customerId || !providerId || !date) {
-      return res.status(400).json({ err: 'serviceId, customerId, providerId, and date are required' });
+    // =========================================================================
+    // REQUIRED FIELDS VALIDATION
+    // =========================================================================
+    if (!serviceId || !customerId || !providerId || !date || !timeSlot) {
+      return res.status(400).json({
+        err: 'serviceId, customerId, providerId, date, and timeSlot are required'
+      });
     }
 
-    // Parse booking datetime
+    // =========================================================================
+    // SERVICE & PROVIDER VALIDATION
+    // =========================================================================
+    const Service = require('../models/services');
+    const service = await Service.findById(serviceId);
+    if (!service) {
+      return res.status(400).json({ err: 'Service not found' });
+    }
+
+    if (service.provider.toString() !== providerId) {
+      return res.status(400).json({ err: 'Service does not belong to this provider' });
+    }
+
+    // =========================================================================
+    // DATE & TIME VALIDATION
+    // =========================================================================
     const bookingDate = new Date(date);
     const now = new Date();
+
     if (bookingDate <= now) {
       return res.status(400).json({ err: 'Booking date must be in the future' });
     }
 
-    // Parse booking time from 12-hour format to 24-hour HH:MM
-    const convertTo24Hour = (timeStr) => {
-      if (timeStr.includes('AM') || timeStr.includes('PM')) {
-        // Parse 12-hour format like "3:00 PM"
-        const [time12, period] = timeStr.split(' ');
-        let [hours, minutes] = time12.split(':').map(Number);
-        if (period === 'PM' && hours !== 12) hours += 12;
-        if (period === 'AM' && hours === 12) hours = 0;
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-      } else {
-        // Already in 24-hour format
-        return timeStr;
-      }
-    };
-
-    const bookingTime = convertTo24Hour(req.body.time || bookingDate.toTimeString().substring(0, 5));
-
-    // Import Availability model for validations
-    const Availability = require('../models/availability');
-
-    // 1. PROVIDER AVAILABILITY CHECK: Temporarily check provider for develop testing
-    const providerAvailability = await Availability.findOne({ providerId: providerId });
-
-    if (!providerAvailability) {
-      return res.status(400).json({ err: 'Provider has no availability configured' });
-    }
-
-    // Find all availabilities and filter manually by date string (avoid timezone issues)
-    const allProviderAvailabilities = await Availability.find({ providerId: providerId });
-
-    const providerAvailabilityForDate = allProviderAvailabilities.find(avail => {
-      return avail.date.toDateString() === bookingDate.toDateString();
-    });
-
-    if (!providerAvailabilityForDate) {
-      return res.status(400).json({ err: 'No availability found for this date' });
-    }
-
-    // Basic time validation
-    if (bookingTime < providerAvailabilityForDate.openingTime ||
-        bookingTime >= providerAvailabilityForDate.closingTime) {
+    // Validate timeSlot format (should be "HH:MM AM/PM" format)
+    const timeSlotRegex = /^(0?[1-9]|1[0-2]):([0-5]\d)\s?(AM|PM)$/i;
+    if (!timeSlotRegex.test(timeSlot)) {
       return res.status(400).json({
-        err: `Booking time is outside provider hours (${providerAvailabilityForDate.openingTime} - ${providerAvailabilityForDate.closingTime})`
+        err: 'Invalid timeSlot format. Use format: "HH:MM AM" or "HH:MM PM"'
       });
     }
 
-    // 3. CONFLICT DETECTION: Check for existing bookings for the same service at the same time
+    // =========================================================================
+    // PROVIDER AVAILABILITY VALIDATION - Use new global system
+    // =========================================================================
+
+    // Check if provider has availability configured
+    const providerAvailability = await Availability.findOne({ providerId });
+    if (!providerAvailability) {
+      return res.status(400).json({
+        err: 'Provider has no availability schedule configured. Please contact the provider.'
+      });
+    }
+
+    
+    const internalDateFormat = bookingDate.toISOString().split('T')[0]; // YYYY-MM-DD
+    const displayDateFormat = formatDateDDMMYYYY(bookingDate); // DD/MM/YYYY for users
+
+    // Simulate getting available slots for validation
+    const availableSlots = await getAvailableSlotsInternal(providerId, bookingDate);
+
+    // Check if requested time slot is available
+    const requestedSlotExists = availableSlots.some(slot =>
+      slot.startTime === timeSlot && slot.available === true
+    );
+
+    if (!requestedSlotExists) {
+      return res.status(400).json({
+        err: `Selected time slot (${timeSlot}) is not available. Please choose from available slots.`
+      });
+    }
+
+    // =========================================================================
+    // BOOKING CONFLICT DETECTION - Check for existing bookings
+    // =========================================================================
     const existingBooking = await Booking.findOne({
-      serviceId: serviceId,
+      providerId: providerId,  // Changed to check provider conflicts (same provider can't double-book)
       date: bookingDate,
-      status: { $in: ['pending', 'confirmed'] } // Only check active bookings
+      timeSlot: timeSlot,
+      status: { $in: ['pending', 'confirmed'] }
     });
 
     if (existingBooking) {
-      return res.status(409).json({ err: 'This service time slot is already booked' });
+      return res.status(409).json({
+        err: 'This provider is already booked for the selected time slot'
+      });
     }
 
-    const created = await Booking.create({
+    // =========================================================================
+    // CREATE BOOKING
+    // =========================================================================
+    const createdBooking = await Booking.create({
       serviceId,
       customerId,
       providerId,
       date: bookingDate,
+      timeSlot: timeSlot,
+      status: 'pending'  // Default status
     });
 
-    return res.status(201).json(created);
+    return res.status(201).json({
+      message: 'Booking created successfully',
+      booking: createdBooking
+    });
+
   } catch (err) {
     console.error('Booking creation error:', err);
     return res.status(500).json({ err: 'Failed to create booking' });
   }
 });
+
+/**
+ * Helper function to get available slots using the new availability system
+ * This simulates an internal call to the availability slots logic
+ */
+async function getAvailableSlotsInternal(providerId, requestedDate) {
+  try {
+    // Get provider's availability schedule
+    const availability = await Availability.findOne({ providerId });
+    if (!availability) return [];
+
+    // Get day of week (0 = Sunday, 6 = Saturday)
+    const dayOfWeek = requestedDate.getDay();
+
+    // Find schedule for this day
+    const schedule = availability.schedules.find(s => s.dayOfWeek === dayOfWeek && s.isEnabled);
+    if (!schedule) return [];
+
+    // Check for date-specific exceptions
+    const dateStr = requestedDate.toISOString().split('T')[0];
+    const exception = availability.exceptions.find(e => e.date.toISOString().split('T')[0] === dateStr);
+
+    // If date has exception and is marked unavailable
+    if (exception && !exception.isAvailable) {
+      return [];
+    }
+
+    // Generate slots based on schedule (excluding breaks and buffer time)
+    const slots = [];
+
+    const startTime = exception?.customStartTime || schedule.startTime;
+    const endTime = exception?.customEndTime || schedule.endTime;
+
+    const start = parseTimeStringInternal(startTime);
+    const end = parseTimeStringInternal(endTime);
+
+    let currentTime = new Date(requestedDate);
+    currentTime.setHours(start.hours, start.minutes, 0, 0);
+
+    const endDateTime = new Date(requestedDate);
+    endDateTime.setHours(end.hours, end.minutes, 0, 0);
+
+    // Generate appointment slots
+    while (currentTime < endDateTime) {
+      // Check if current time slot overlaps with break times
+      const isDuringBreak = schedule.breakTimes?.some(breakTime => {
+        const breakStart = parseTimeStringInternal(breakTime.startTime);
+        const breakEnd = parseTimeStringInternal(breakTime.endTime);
+
+        const slotStartHour = currentTime.getHours();
+        const slotEndHour = currentTime.getHours() + Math.floor(schedule.slotDuration / 60);
+
+        return (slotStartHour >= breakStart.hours) &&
+               (slotEndHour <= breakEnd.hours);
+      }) ?? false;
+
+      if (!isDuringBreak) {
+        slots.push({
+          startTime: formatTimeStringInternal(currentTime),
+          endTime: formatTimeStringInternal(new Date(currentTime.getTime() + (schedule.slotDuration * 60000))),
+          available: true
+        });
+      }
+
+      // Move to next slot with buffer time
+      currentTime = new Date(currentTime.getTime() + ((schedule.slotDuration + schedule.bufferTime) * 60000));
+    }
+
+    return slots;
+  } catch (err) {
+    console.error('Error getting available slots internally:', err);
+    return [];
+  }
+}
+
+/**
+ * Time parsing helper for internal availability calculations
+ */
+function parseTimeStringInternal(timeStr) {
+  const match = timeStr.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+  if (!match) return null;
+
+  let hours = parseInt(match[1]);
+  const minutes = parseInt(match[2]);
+  const period = match[3].toUpperCase();
+
+  if (period === 'PM' && hours !== 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+
+  return { hours, minutes };
+}
+
+/**
+ * Time formatting helper for internal availability calculations
+ */
+function formatTimeStringInternal(date) {
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+
+  return `${displayHours}:${minutes} ${period}`;
+}
 
 
 

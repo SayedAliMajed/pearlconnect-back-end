@@ -39,8 +39,8 @@ router.post('/', verifyToken, checkRole(['admin', 'provider', 'customer']), asyn
     
     // Populate sender and receiver info for response
     const populatedMessage = await Message.findById(createdMessage._id)
-      .populate('senderId', 'profile.fullName')
-      .populate('receiverId', 'profile.fullName');
+      .populate('senderId', 'profile.firstName profile.lastName')
+      .populate('receiverId', 'profile.firstName profile.lastName');
 
     res.status(201).json(populatedMessage);
 
@@ -67,8 +67,8 @@ router.get('/', verifyToken, checkRole(['admin', 'provider', 'customer']), async
         { receiverId: req.user._id }
       ]
     })
-    .populate('senderId', 'profile.fullName')
-    .populate('receiverId', 'profile.fullName')
+    .populate('senderId', 'profile.firstName profile.lastName')
+    .populate('receiverId', 'profile.firstName profile.lastName')
     .sort({ sentAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -103,8 +103,8 @@ router.get('/', verifyToken, checkRole(['admin', 'provider', 'customer']), async
 router.get('/:messageId', verifyToken, checkRole(['admin', 'provider', 'customer']), async (req, res) => {
   try {
     const foundMessage = await Message.findById(req.params.messageId)
-      .populate('senderId', 'profile.fullName')
-      .populate('receiverId', 'profile.fullName');
+      .populate('senderId', 'profile.firstName profile.lastName')
+      .populate('receiverId', 'profile.firstName profile.lastName');
 
     if (!foundMessage) {
       res.status(404);
@@ -180,8 +180,8 @@ router.put('/:messageId/read', verifyToken, checkRole(['admin', 'provider', 'cus
 
     // Return updated message with populated data
     const updatedMessage = await Message.findById(req.params.messageId)
-      .populate('senderId', 'profile.fullName')
-      .populate('receiverId', 'profile.fullName');
+      .populate('senderId', 'profile.firstName profile.lastName')
+      .populate('receiverId', 'profile.firstName profile.lastName');
 
     res.status(200).json({updatedMessage});
 
@@ -216,8 +216,8 @@ router.get('/conversation/:userId', verifyToken, checkRole(['admin', 'provider',
         { senderId: userId, receiverId: req.user._id }
       ]
     })
-    .populate('senderId', 'profile.fullName')
-    .populate('receiverId', 'profile.fullName')
+    .populate('senderId', 'profile.firstName profile.lastName')
+    .populate('receiverId', 'profile.firstName profile.lastName')
     .sort({ sentAt: 1 }) // chronological order for conversations
     .skip(skip)
     .limit(limit);
@@ -236,7 +236,7 @@ router.get('/conversation/:userId', verifyToken, checkRole(['admin', 'provider',
       conversation: foundConversation,
       otherUser: {
         _id: otherUser._id,
-        name: otherUser.profile.fullName
+        name: `${otherUser.profile?.firstName || ''} ${otherUser.profile?.lastName || ''}`.trim()
       },
       pagination: {
         currentPage: page,
@@ -271,7 +271,7 @@ router.get('/conversations/list', verifyToken, checkRole(['admin', 'provider', '
     // Get user details for each conversation partner
     const conversationPartners = await User.find(
       { _id: { $in: conversationPartnerIds } },
-      { 'profile.fullName': 1 }
+      'profile.firstName profile.lastName'
     );
     
     // Get last message and unread count for each conversation
@@ -293,7 +293,7 @@ router.get('/conversations/list', verifyToken, checkRole(['admin', 'provider', '
         return {
           otherUser: {
             _id: partner._id,
-            name: partner.profile.fullName
+            name: `${partner.profile?.firstName || ''} ${partner.profile?.lastName || ''}`.trim()
           },
           lastMessage: lastMessage ? {
             _id: lastMessage._id,

@@ -141,7 +141,7 @@ router.post('/', verifyToken, checkRole(['admin']), async (req, res) => {
   }
 });
 
-// PUT/PATCH /:id - Update user (admin or owner)
+// PUT/:id - Update user (admin or owner)
 router.put('/:id', verifyToken, async (req, res) => {
   try {
     const { username, email, role, profile, password } = req.body;

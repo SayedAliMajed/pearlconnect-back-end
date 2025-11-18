@@ -85,9 +85,9 @@ router.post('/sign-up', async (req, res) => {
     }
 
     // Validate required fields presence
-    if (!req.body.username || !req.body.email || !req.body.password || !req.body.role) {
+    if (!req.body.username || !req.body.email || !req.body.password || !req.body.role || !req.body.firstName || !req.body.lastName ) {
       return res.status(400).json({
-        err: 'Username, email, password, and role are required',
+        err: 'Username, email, password,first name, last name and role are required',
       });
     }
 
@@ -292,7 +292,7 @@ router.get('/:id', verifyToken, async (req, res) => {
   }
 });
 
-// PUT/PATCH /profile - Update user profile
+// PUT/profile - Update user profile
 router.put('/profile', verifyToken, async (req, res) => {
   try {
     const allowedUpdates = ['profile'];

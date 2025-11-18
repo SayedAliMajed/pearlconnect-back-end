@@ -144,14 +144,7 @@ app.use(cors({
 // SOCKET.IO INITIALIZATION - Real-time communication setup
 // =============================================================================
 
-/**
- * Initialize Socket.IO for real-time bidirectional communication.
- * Enables features like:
- * - Live chat messaging between customers and providers
- * - Real-time booking status updates
- * - Notification system
- * - Live availability updates
- */
+
 const io = initializeSocket(server);
 
 // =============================================================================
