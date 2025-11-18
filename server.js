@@ -1,16 +1,6 @@
 /**
- * PearlConnect Backend Server
- * ===========================
- *
- * Main Express.js server file that sets up the PearlConnect service marketplace API.
- * Handles routing, middleware configuration, database connections, and real-time communication.
- *
- * Features:
- * - RESTful API endpoints for users, services, bookings, reviews
- * - JWT authentication and role-based access control
- * - Real-time messaging with Socket.IO
- * - MongoDB database integration
- * - CORS configuration for frontend communication
+ * @fileoverview PearlConnect Backend Server
+ * Main Express.js server file for the service marketplace API.
  */
 
 // Environment variable configuration
@@ -112,20 +102,12 @@ app.get('/', (req, res) => {
 });
 
 /**
- * PUBLIC ROUTES - No authentication required
- * These endpoints can be accessed without a valid JWT token.
+ * Public routes - no authentication required
  */
 app.use('/auth', authCtrl);  // Authentication endpoints (login, signup, logout)
 
 /**
- * PRIVATE ROUTES - Authentication required for all endpoints
- * These routes use the verifyToken middleware globally.
- */
-
-
-/**
- * PRIVATE ROUTES - Individual middleware application
- * Authentication middleware applied to specific route groups.
+ * Private routes - authentication required
  */
 app.use('/users', verifyToken, usersCtrl);           // User profile management
 app.use('/message', verifyToken, messageCtrl);       // Real-time messaging
@@ -134,7 +116,7 @@ app.use('/bookings', verifyToken, bookingsCtrl);     // Booking operations
 app.use('/providers', verifyToken, providersCtrl);   // Provider dashboard functions
 app.use('/availability', verifyToken, availabilityCtrl); // Provider availability schedules
 app.use('/services', verifyToken, servicesCtrl);      // Service listings and management
-app.use('/categories', verifyToken, categoriesCtrl);  // Service categories (made public temporarily)
+app.use('/categories', verifyToken, categoriesCtrl);  // Service categories
 
 
 // =============================================================================
