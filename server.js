@@ -101,4 +101,5 @@ process.on('unhandledRejection', (reason, promise) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`PearlConnect server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`REST API messaging system active`);
 });
