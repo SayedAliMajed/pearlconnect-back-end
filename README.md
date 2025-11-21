@@ -4,10 +4,10 @@
 [![Node.js](https://img.shields.io/badge/Node.js-20.19.3-green.svg)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-4.x-lightgrey.svg)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-blue.svg)](https://www.mongodb.com/atlas)
-[![Socket.IO](https://img.shields.io/badge/Socket.IO-Real--time-black.svg)](https://socket.io/)
+[![REST API](https://img.shields.io/badge/Messaging-REST--API-blue.svg)](https://restfulapi.net/)
 [![JWT](https://img.shields.io/badge/JWT-Authentication-red.svg)](https://jwt.io/)
 
-PearlConnect is a comprehensive, full-stack service marketplace platform that seamlessly connects customers with professional service providers. Built with modern technologies for scalability, real-time features, and exceptional user experience.
+PearlConnect is a comprehensive, full-stack service marketplace platform that seamlessly connects customers with professional service providers. Built with modern technologies for scalability, secure messaging, and exceptional user experience.
 
 ![PearlConnect Banner](https://via.placeholder.com/800x400/4f46e5/ffffff?text=PearlConnect+-+Service+Marketplace)
 
@@ -47,10 +47,11 @@ PearlConnect is a comprehensive, full-stack service marketplace platform that se
 - **Comprehensive Review System**: 5-star ratings and detailed feedback mechanism
 - **Booking History**: Complete transaction and appointment management
 
-### 💬 **Real-time Communication**
-- **Socket.IO Integration**: Real-time notifications and live updates
-- **Live Availability Updates**: Instant booking confirmations
-- **Real-time Reviews**: Live feed of service feedback and ratings
+### 💬 **RESTful Messaging System**
+- **HTTP-based Messaging**: Secure message exchange between customers and providers
+- **Conversation Management**: Organized conversations with unread count tracking
+- **Message History**: Complete conversation history with threading support
+- **Read Status Tracking**: Message delivery and read confirmation
 
 ### 📊 **Advanced Analytics & Reporting**
 - **Provider Performance Metrics**: Comprehensive dashboard analytics
@@ -148,7 +149,6 @@ npm run dev
 - **Framework**: Express.js 4.x
 - **Database**: MongoDB Atlas with Mongoose ODM
 - **Authentication**: JWT with bcrypt password hashing
-- **Real-time**: Socket.IO for live features
 - **File Upload**: Multer with cloud storage
 - **Validation**: Custom middleware with express-validator
 - **Security**: Helmet, rate limiting, CORS protection
@@ -181,7 +181,6 @@ pearlconnect/
 │   │   ├── booking.js       # Appointment bookings
 │   │   └── reviews.js       # Customer feedback
 │   ├── routes/              # 🛣️ API endpoints
-│   ├── socket/              # 💬 Real-time communication
 │   ├── uploads/             # 📁 File storage
 │   ├── server.js            # 🚀 Main application entry
 │   └── package.json
@@ -381,7 +380,6 @@ The frontend is built with modern React patterns and includes:
 - **Responsive Design**: Mobile-first approach with Tailwind CSS
 - **Component Architecture**: Reusable UI components library
 - **Context Management**: Global state for authentication and user data
-- **Real-time Updates**: Socket.IO integration for live features
 - **Form Validation**: Client-side validation with error handling
 - **Loading States**: User feedback during API calls and transitions
 
@@ -404,7 +402,7 @@ npm test
 - [ ] Service browsing and filtering
 - [ ] Booking system and availability
 - [ ] Review submission and display
-- [ ] Real-time notifications via Socket.IO
+- [ ] REST API messaging system
 
 ## 📦 Deployment
 
@@ -496,7 +494,7 @@ copies or substantial portions of the Software.
 - **React Team** for the amazing frontend framework
 - **Express.js Community** for the robust backend framework
 - **MongoDB Atlas** for reliable database services
-- **Socket.IO Team** for real-time communication
+
 - **Vite Team** for lightning-fast development experience
 
 ---
@@ -523,4 +521,3 @@ Experience PearlConnect live:
 **Made with ❤️ by the PearlConnect Team**
 
 ⭐ **Star us on GitHub** | 🐛 **Report Issues** | 💡 **Request Features**
-
