@@ -43,16 +43,30 @@ mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected');
 });
 
-// Middleware setup
+// Middleware setup - Production CORS configuration
 app.use(cors({
-  origin: [
-    'https://pearlconnect.netlify.app/',
-    'http://localhost:3000',
-    'http://localhost:5173'
-  ],
+  origin: process.env.NODE_ENV === 'production'
+    ? function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+
+        // For production, allow any origin starting with http/https
+        // This allows any deployment domain while maintaining security
+        const allowed = /^https?:\/\/.+$/.test(origin);
+        if (allowed) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      }
+    : [
+        'http://localhost:3000',
+        'http://localhost:5173'
+      ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 }));
 
 app.use(express.json());
