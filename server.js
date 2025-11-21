@@ -1,5 +1,4 @@
 const dotenv = require('dotenv');
-const http = require('http');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -8,7 +7,6 @@ const logger = require('morgan');
 dotenv.config();
 
 const app = express();
-const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
 // Controller imports
@@ -24,7 +22,6 @@ const availabilityCtrl = require('./controllers/availability');
 
 // Middleware
 const verifyToken = require('./middleware/verify-token');
-const { initializeSocket } = require('./socket/socketHandler.js');
 
 // Database connection
 mongoose.connect(process.env.MONGODB_URI).catch(err => {
@@ -96,9 +93,6 @@ app.use('/availability', verifyToken, availabilityCtrl);
 app.use('/services', verifyToken, servicesCtrl);
 app.use('/categories', verifyToken, categoriesCtrl);
 
-// Socket.IO
-const io = initializeSocket(server);
-
 // Error handling
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
@@ -107,5 +101,4 @@ process.on('unhandledRejection', (reason, promise) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`PearlConnect server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Socket.IO enabled for real-time features`);
 });
