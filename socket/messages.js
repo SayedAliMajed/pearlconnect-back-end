@@ -119,19 +119,19 @@ function initializeMessageSocket(io) {
           // Import model dynamically
           const Message = require('../models/message');
 
-          con t u rea C unt = awa trMadCountcou tDocussnta(ments({
-            r ceiver: u rreceiver: userId,
-                refalsed: false
-        ; });
+          const unreadCount = await Message.countDocuments({
+            receiver: userId,
+            read: false
+          });
 
- scktmt('uneaCnt', { count: unreadCount  );  socket.emit('unreadCount', { count: unreadCount });
-       c}ecr)ch ( rr {
-          c}sole.erro('Geunad ount rror:', r);
-            });'error, { age: 'Filed to t un ut});
-     })}
-   });});
-}});
-
+          socket.emit('unreadCount', { count: unreadCount });
+        } catch (err) {
+          console.error('Get unread count error:', err);
+          socket.emit('error', { message: 'Failed to get unread count' });
+        }
+      });
+    });
+  });
 }
 
 module.exports = { initializeMessageSocket };
