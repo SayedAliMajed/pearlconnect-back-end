@@ -4,9 +4,9 @@ const reviewSchema = new mongoose.Schema({
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking',
-    required: true,
+    required: false, // Optional for general reviews
   },
-  reviewerId: {
+  customerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,

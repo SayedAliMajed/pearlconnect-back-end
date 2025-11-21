@@ -1,236 +1,137 @@
-const Message = require('../models/message.js');
-const User = require('../models/user.js');
-const { sendToUser, isUserOnline } = require('./users.js');
+const { authenticateSocket } = require('./auth');
 
-// Send message in real-time
-const sendMessage = async (io, socket, data) => {
-  try {
-    const { receiverId, content } = data;
-    const senderId = socket.user._id;
+function initializeMessageSocket(io) {
+  io.on('connection', (socket) => {
+    // Authenticate socket first
+    authenticateSocket(socket, () => {
+      socket.on('sendMessage', async (data) => {
+        try {
+          const { receiverId, content } = data;
+          const senderId = socket.userId;
 
-    // Validate input
-    if (!receiverId || !content || !content.trim()) {
-      socket.emit('error', { message: 'Receiver ID and content are required' });
-      return;
-    }
+          // Import models dynamically to avoid circular dependencies
+          const Message = require('../models/message');
+          const User = require('../models/user');
 
-    // Check if receiver exists
-    const receiver = await User.findById(receiverId);
-    if (!receiver) {
-      socket.emit('error', { message: 'Receiver not found' });
-      return;
-    }
+          if (!receiverId || !content || content.trim() === '') {
+            socket.emit('error', { message: 'Receiver and content are required' });
+            return;
+          }
 
-    // Create message in database
-    const messageData = {
-      senderId,
-      receiverId,
-      content: content.trim(),
-      read: false
-    };
+          // Validate content length
+          if (content.length > 1000) {
+            socket.emit('error', { message: 'Message too long (max 1000 characters)' });
+            return;
+          }
 
-    const message = await Message.create(messageData);
+          const receiverExists = await User.findById(receiverId);
+          if (!receiverExists) {
+            socket.emit('error', { message: 'Receiver not found' });
+            return;
+          }
 
-    // Populate sender and receiver info
-    const populatedMessage = await Message.findById(message._id)
-      .populate('senderId', 'profile.fullName')
-      .populate('receiverId', 'profile.fullName');
+          const message = await Message.create({
+            sender: senderId,
+            receiver: receiverId,
+            content: content.trim()
+          });
 
-    const messageResponse = {
-      _id: populatedMessage._id,
-      content: populatedMessage.content,
-      sentAt: populatedMessage.sentAt,
-      read: populatedMessage.read,
-      senderId: populatedMessage.senderId._id,
-      senderName: populatedMessage.senderId.profile.fullName,
-      receiverId: populatedMessage.receiverId._id,
-      receiverName: populatedMessage.receiverId.profile.fullName
-    };
+          socket.emit('messageSent', { message: 'Message sent successfully', messageId: message._id });
 
-    // Send to receiver (real-time)
-    if (isUserOnline(receiverId)) {
-      sendToUser(io, receiverId, 'receive_message', messageResponse);
-    }
-
-    // Send delivery confirmation to sender
-    socket.emit('message_sent', {
-      success: true,
-      message: messageResponse
-    });
-
-    // Send notification to receiver
-    if (isUserOnline(receiverId)) {
-      sendToUser(io, receiverId, 'message_notification', {
-        type: 'new_message',
-        from: {
-          _id: senderId,
-          name: populatedMessage.senderId.profile.fullName
-        },
-        message: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
-        timestamp: new Date()
+          // Emit to receiver if online
+          const receiverSocket = getUserSocket(receiverId);
+          if (receiverSocket) {
+            receiverSocket.emit('newMessage', {
+              sender: senderId,
+              content: content,
+              createdAt: message.createdAt
+            });
+          }
+        } catch (err) {
+          console.error('Send message error:', err);
+          socket.emit('error', { message: 'Failed to send message' });
+        }
       });
-    }
 
-    console.log(`Message sent from ${senderId} to ${receiverId}`);
+      socket.on('getMessageHistory', async (data) => {
+        try {
+          const { otherUserId } = data;
+          const userId = socket.userId;
 
-  } catch (err) {
-    console.error('Send message error:', err);
-    socket.emit('error', { message: 'Failed to send message' });
-  }
-};
+          if (!otherUserId) {
+            socket.emit('error', { message: 'Other user ID required' });
+            return;
+          }
 
-// Mark message as read
-const markMessageAsRead = async (io, socket, data) => {
-  try {
-    const { messageId } = data;
-    const userId = socket.user._id;
+          // Import model dynamically
+          const Message = require('../models/message');
 
-    // Find and validate message
-    const message = await Message.findById(messageId);
-    if (!message) {
-      socket.emit('error', { message: 'Message not found' });
-      return;
-    }
+          const messages = await Message.find({
+            $or: [
+              { sender: userId, receiver: otherUserId },
+              { sender: otherUserId, receiver: userId }
+            ]
+          })
+          .sort({ createdAt: 1 })
+          .limit(50);
 
-    // Check if user is the receiver
-    if (message.receiverId.toString() !== userId) {
-      socket.emit('error', { message: 'Access denied' });
-      return;
-    }
+          socket.emit('messageHistory', { messages });
+        } catch (err) {
+          console.error('Get message history error:', err);
+          socket.emit('error', { message: 'Failed to get message history' });
+        }
+      });
 
-    // Update message read status
-    message.read = true;
-    await message.save();
+      socket.on('markMessageAsRead', async (data) => {
+        try {
+          const { messageId } = data;
+          const userId = socket.userId;
 
-    // Populate message for response
-    const populatedMessage = await Message.findById(messageId)
-      .populate('senderId', 'profile.fullName')
-      .populate('receiverId', 'profile.fullName');
+          if (!messageId) {
+            socket.emit('error', { message: 'Message ID required' });
+            return;
+          }
 
-    const messageResponse = {
-      _id: populatedMessage._id,
-      content: populatedMessage.content,
-      sentAt: populatedMessage.sentAt,
-      read: populatedMessage.read,
-      senderId: populatedMessage.senderId._id,
-      senderName: populatedMessage.senderId.profile.fullName,
-      receiverId: populatedMessage.receiverId._id,
-      receiverName: populatedMessage.receiverId.profile.fullName
-    };
+          // Import model dynamically
+          const Message = require('../models/message');
 
-    // Send read receipt to sender
-    sendToUser(io, message.senderId, 'message_read', {
-      messageId,
-      readBy: {
-        _id: userId,
-        name: populatedMessage.receiverId.profile.fullName
-      },
-      readAt: new Date()
-    });
+          const message = await Message.findById(messageId);
+          if (!message) {
+            socket.emit('error', { message: 'Message not found' });
+            return;
+          }
 
-    // Confirm to receiver
-    socket.emit('message_read_confirmed', {
-      success: true,
-      message: messageResponse
-    });
+          if (message.receiver.toString() === userId) {
+            await Message.findByIdAndUpdate(messageId, { read: true });
+          }
 
-    console.log(`Message ${messageId} marked as read by ${userId}`);
+          socket.emit('messageRead', { messageId });
+        } catch (err) {
+          console.error('Mark as read error:', err);
+          socket.emit('error', { message: 'Failed to mark message as read' });
+        }
+      });
 
-  } catch (err) {
-    console.error('Mark as read error:', err);
-    socket.emit('error', { message: 'Failed to mark message as read' });
-  }
-};
+      socket.on('getUnreadCount', async () => {
+        try {
+          const userId = socket.userId;
 
-// Handle typing indicators
-const handleTyping = (io, socket, data) => {
-  const { receiverId, isTyping } = data;
-  const senderId = socket.user._id;
-  const senderName = socket.user.name;
+          // Import model dynamically
+          const Message = require('../models/message');
 
-  // Send typing indicator to receiver
-  if (isUserOnline(receiverId)) {
-    sendToUser(io, receiverId, 'typing_indicator', {
-      userId: senderId,
-      userName: senderName,
-      isTyping
-    });
-  }
-};
+          con t u rea C unt = awa trMadCountcou tDocussnta(ments({
+            r ceiver: u rreceiver: userId,
+                refalsed: false
+        ; });
 
-// Get message history between two users
-const getMessageHistory = async (socket, data) => {
-  try {
-    const { otherUserId, page = 1, limit = 50 } = data;
-    const userId = socket.user._id;
-    const skip = (page - 1) * limit;
+ scktmt('uneaCnt', { count: unreadCount  );  socket.emit('unreadCount', { count: unreadCount });
+       c}ecr)ch ( rr {
+          c}sole.erro('Geunad ount rror:', r);
+            });'error, { age: 'Filed to t un ut});
+     })}
+   });});
+}});
 
-    const messages = await Message.find({
-      $or: [
-        { senderId: userId, receiverId: otherUserId },
-        { senderId: otherUserId, receiverId: userId }
-      ]
-    })
-    .populate('senderId', 'profile.fullName')
-    .populate('receiverId', 'profile.fullName')
-    .sort({ sentAt: -1 })
-    .skip(skip)
-    .limit(parseInt(limit));
+}
 
-    // Get other user info
-    const otherUser = await User.findById(otherUserId, { 'profile.fullName': 1, username: 1 });
-
-    const messageHistory = messages.reverse().map(msg => ({
-      _id: msg._id,
-      content: msg.content,
-      sentAt: msg.sentAt,
-      read: msg.read,
-      senderId: msg.senderId._id,
-      senderName: msg.senderId.profile.fullName,
-      receiverId: msg.receiverId._id,
-      receiverName: msg.receiverId.profile.fullName
-    }));
-
-    socket.emit('message_history', {
-      messages: messageHistory,
-      otherUser: {
-        _id: otherUserId,
-        name: otherUser?.profile?.fullName || 'Unknown User'
-      },
-      pagination: {
-        page: parseInt(page),
-        hasMore: messages.length === parseInt(limit)
-      }
-    });
-
-  } catch (err) {
-    console.error('Get message history error:', err);
-    socket.emit('error', { message: 'Failed to get message history' });
-  }
-};
-
-// Get unread message count
-const getUnreadCount = async (socket) => {
-  try {
-    const userId = socket.user._id;
-
-    const unreadCount = await Message.countDocuments({
-      receiverId: userId,
-      read: false
-    });
-
-    socket.emit('unread_count', { count: unreadCount });
-
-  } catch (err) {
-    console.error('Get unread count error:', err);
-    socket.emit('error', { message: 'Failed to get unread count' });
-  }
-};
-
-module.exports = {
-  sendMessage,
-  markMessageAsRead,
-  handleTyping,
-  getMessageHistory,
-  getUnreadCount
-};
+module.exports = { initializeMessageSocket };

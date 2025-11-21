@@ -1,161 +1,95 @@
-/**
- * @fileoverview PearlConnect Backend Server
- * Main Express.js server file for the service marketplace API.
- */
-
-// Environment variable configuration
 const dotenv = require('dotenv');
 const http = require('http');
-
-dotenv.config();
-
-// Core dependencies
 const express = require('express');
-const app = express();
-const server = http.createServer(app); // HTTP server for Express and Socket.IO
 const mongoose = require('mongoose');
 const cors = require('cors');
 const logger = require('morgan');
 
-// Server configuration
+dotenv.config();
+
+const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-// =============================================================================
-// CONTROLLERS - Route handlers for different API endpoints
-// =============================================================================
+// Controller imports
+const authCtrl = require('./controllers/auth');
+const usersCtrl = require('./controllers/users');
+const servicesCtrl = require('./controllers/services');
+const messageCtrl = require('./controllers/message');
+const categoriesCtrl = require('./controllers/categories');
+const reviewsCtrl = require('./controllers/reviews');
+const bookingsCtrl = require('./controllers/booking');
+const providersCtrl = require('./controllers/providers');
+const availabilityCtrl = require('./controllers/availability');
 
-/**
- * Controller modules that handle HTTP requests for specific resources.
- * Each controller contains middleware functions for various CRUD operations.
- */
-const authCtrl = require('./controllers/auth');          // User authentication (login/logout/signup)
-const usersCtrl = require('./controllers/users');        // User management (profile updates)
-const servicesCtrl = require('./controllers/services');  // Service CRUD operations
-const messageCtrl = require('./controllers/message');    // Chat messaging system
-const categoriesCtrl = require('./controllers/categories'); // Service categories
-const reviewsCtrl = require('./controllers/reviews');    // Customer reviews for services
-const bookingsCtrl = require('./controllers/booking');   // Customer bookings and appointments
-const providersCtrl = require('./controllers/providers'); // Provider-specific operations
-const availabilityCtrl = require('./controllers/availability'); // Provider availability schedules
-
-// =============================================================================
-// MIDDLEWARE - Request processing pipeline components
-// =============================================================================
-
-/**
- * Custom middleware for request authentication and authorization.
- * verifyToken - Validates JWT tokens and attaches user data to request object
- */
+// Middleware
 const verifyToken = require('./middleware/verify-token');
-
-// =============================================================================
-// SOCKET.IO - Real-time communication setup
-// =============================================================================
-
-/**
- * Socket.IO initialization for real-time messaging and notifications.
- * Handles WebSocket connections for live chat, booking updates, etc.
- */
 const { initializeSocket } = require('./socket/socketHandler.js');
 
-// =============================================================================
-// DATABASE CONNECTION - MongoDB setup
-// =============================================================================
+// Database connection
+mongoose.connect(process.env.MONGODB_URI).catch(err => {
+  console.error('MongoDB connection failed:', err);
+});
 
-/**
- * Establish connection to MongoDB database using Mongoose ODM.
- * Uses connection string from environment variables for security.
- */
-mongoose.connect(process.env.MONGODB_URI);
-
-/**
- * Database connection event listeners for monitoring connection status.
- */
 mongoose.connection.on('connected', () => {
   console.log(`Connected to MongoDB ${mongoose.connection.name}.`);
 });
 
-// =============================================================================
-// EXPRESS MIDDLEWARE SETUP - Request processing pipeline
-// =============================================================================
+mongoose.connection.on('error', (err) => {
+  console.error('MongoDB connection error:', err);
+});
 
-/**
- * Global middleware applied to all routes in order.
- * - cors: Enables cross-origin requests from frontend
- * - express.json: Parses JSON request bodies
- * - logger: Logs HTTP requests for debugging (Morgan)
- */
-app.use(cors());                    // Enable CORS for frontend requests
-app.use(express.json());            // Parse incoming JSON payloads
-app.use(logger('dev'));             // HTTP request logging
+mongoose.connection.on('disconnected', () => {
+  console.log('MongoDB disconnected');
+});
 
-// =============================================================================
-// API ROUTES - URL endpoint definitions
-// =============================================================================
+// Middleware setup
+app.use(cors({
+  origin: [
+    'https://pearlconnect.netlify.app/',
+    'http://localhost:3000',
+    'http://localhost:5173'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
+}));
 
-/**
- * Basic health check endpoint for monitoring and load balancer probes.
- * Returns JSON status to verify server is running properly.
- */
+app.use(express.json());
+app.use(logger('dev'));
+
+app.use('/uploads', express.static('uploads', {
+  setHeaders: (res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  }
+}));
+
+// Health check endpoint
 app.get('/', (req, res) => {
   res.json({ status: 'OK', message: 'PearlConnect API is running' });
 });
 
-/**
- * Public routes - no authentication required
- */
-app.use('/auth', authCtrl);  // Authentication endpoints (login, signup, logout)
+// Routes
+app.use('/auth', authCtrl);
+app.use('/users', verifyToken, usersCtrl);
+app.use('/message', verifyToken, messageCtrl);
+app.use('/reviews', verifyToken, reviewsCtrl);
+app.use('/bookings', verifyToken, bookingsCtrl);
+app.use('/providers', verifyToken, providersCtrl);
+app.use('/availability', verifyToken, availabilityCtrl);
+app.use('/services', verifyToken, servicesCtrl);
+app.use('/categories', verifyToken, categoriesCtrl);
 
-/**
- * Private routes - authentication required
- */
-app.use('/users', verifyToken, usersCtrl);           // User profile management
-app.use('/message', verifyToken, messageCtrl);       // Real-time messaging
-app.use('/reviews', verifyToken, reviewsCtrl);       // Customer reviews
-app.use('/bookings', verifyToken, bookingsCtrl);     // Booking operations
-app.use('/providers', verifyToken, providersCtrl);   // Provider dashboard functions
-app.use('/availability', verifyToken, availabilityCtrl); // Provider availability schedules
-app.use('/services', verifyToken, servicesCtrl);      // Service listings and management
-app.use('/categories', verifyToken, categoriesCtrl);  // Service categories
-
-
-// =============================================================================
-// CORS CONFIGURATION - Frontend communication setup
-// =============================================================================
-
-/**
- * Cross-Origin Resource Sharing (CORS) configuration for secure frontend communication.
- * Allows requests from specified origins and enables credentials (cookies/JWT).
- *
- * Origins:
- * - Production frontend on Netlify
- * - Local development environments
- */
-app.use(cors({
-  origin: [
-    'https://pearlconnect.netlify.app/',           // Production frontend on Netlify
-    'http://localhost:3000',                        // Local API proxy
-    'http://localhost:5173'                         // Vite dev server
-  ],
-  credentials: true                                // Allow cookies/auth headers
-}));
-
-// =============================================================================
-// SOCKET.IO INITIALIZATION - Real-time communication setup
-// =============================================================================
-
-
+// Socket.IO
 const io = initializeSocket(server);
 
-// =============================================================================
-// SERVER STARTUP - Application bootstrap
-// =============================================================================
+// Error handling
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
-/**
- * Start the HTTP server with Socket.IO support.
- * Listens on all network interfaces (0.0.0.0) for Docker/container compatibility.
- * Uses environment variable PORT or defaults to 3000.
- */
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`PearlConnect server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

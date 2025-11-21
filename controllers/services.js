@@ -1,14 +1,45 @@
 const express = require('express');
+const multer = require('multer');
 const Service = require('../models/services');
 const verifyToken = require('../middleware/verify-token');
 const checkRole = require('../middleware/checkRole');
 
 const router = express.Router();
 
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
+// File filter to accept only images
+const fileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB per file
+    files: 10 // Maximum 10 files
+  }
+});
+
 // CREATE a service (provider or admin)
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', verifyToken, upload.array('images', 10), async (req, res) => {
   try {
-    const { title, description, price, category, provider, images } = req.body;
+    const { title, description, price, category, provider } = req.body;
 
     // Check permissions: user must be admin, or a provider creating for themselves
     const isAdmin = req.user.role === 'admin';
@@ -26,6 +57,31 @@ router.post('/', verifyToken, async (req, res) => {
       return res.status(400).json({ err: 'Price must be a valid number in BD' });
     }
 
+    // Process images: start with any existing image URLs, then add uploaded files
+    let images = [];
+    if (req.body.images) {
+      if (Array.isArray(req.body.images)) {
+        images = req.body.images; // Pre-existing image objects
+      } else if (typeof req.body.images === 'string') {
+        try {
+          images = JSON.parse(req.body.images); // Handle stringified JSON
+        } catch (e) {
+          console.warn('Failed to parse images JSON:', e.message);
+        }
+      }
+    }
+
+    // Add uploaded files to the images array
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        images.push({
+          url: `/uploads/${file.filename}`,
+          alt: file.originalname || 'Service image'
+        });
+      }
+    }
+
+    // Create service with processed data
     const created = await Service.create({
       title,
       description,
@@ -37,6 +93,21 @@ router.post('/', verifyToken, async (req, res) => {
     return res.status(201).json(created);
   } catch (err) {
     console.error('Service creation error:', err);
+
+    // Handle multer errors
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ err: 'File size too large. Maximum 5MB per file.' });
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ err: 'Too many files. Maximum 10 images allowed.' });
+      }
+    }
+
+    if (err.message === 'Only image files are allowed!') {
+      return res.status(400).json({ err: err.message });
+    }
+
     console.error('Error details:', {
       name: err.name,
       message: err.message,

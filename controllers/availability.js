@@ -24,9 +24,14 @@ router.get('/provider/:providerId', verifyToken, async (req, res) => {
       return res.status(404).json({ err: 'Provider not found' });
     }
 
-    // Only the provider themselves or admin can view availability
-    if (req.user.role !== 'admin' && req.user._id.toString() !== providerId) {
-      return res.status(403).json({ err: 'Access denied - can only view own availability' });
+    // Allow providers to view their own availability OR customers to view availability for booking
+    // Only restrict if user is trying to access someone else's availability and they're not admin
+    const isProviderViewingOwn = req.user._id.toString() === providerId;
+    const isAdmin = req.user.role === 'admin';
+    const isCustomer = req.user.role === 'customer';
+
+    if (!isProviderViewingOwn && !isAdmin && !isCustomer) {
+      return res.status(403).json({ err: 'Access denied - invalid user role' });
     }
 
     const availability = await Availability.findOne({ providerId })
@@ -76,13 +81,14 @@ router.post('/provider/:providerId', verifyToken, async (req, res) => {
     // Validate schedule structure
     for (let i = 0; i < schedules.length; i++) {
       const schedule = schedules[i];
-      if (!schedule.dayOfWeek || !schedule.startTime || !schedule.endTime || !schedule.slotDuration) {
+      if (schedule.dayOfWeek === undefined || schedule.dayOfWeek === null ||
+          schedule.startTime === undefined || schedule.startTime === null ||
+          schedule.endTime === undefined || schedule.endTime === null ||
+          schedule.slotDuration === undefined || schedule.slotDuration === null) {
         return res.status(400).json({
           err: `Schedule ${i + 1}: dayOfWeek, startTime, endTime, and slotDuration are required`
         });
       }
-
-      // Validate time format (should be HH:MM AM/PM)
       const timeRegex = /^(0?[1-9]|1[0-2]):([0-5]\d)\s?(AM|PM)$/i;
       if (!timeRegex.test(schedule.startTime) || !timeRegex.test(schedule.endTime)) {
         return res.status(400).json({
@@ -205,6 +211,21 @@ router.get('/provider/:providerId/slots', verifyToken, async (req, res) => {
   try {
     const { providerId } = req.params;
     const { date, serviceId } = req.query; // serviceId optional for future service-specific overrides
+
+    // Validate provider exists
+    const provider = await User.findById(providerId);
+    if (!provider) {
+      return res.status(404).json({ err: 'Provider not found' });
+    }
+
+    // Allow customers to view available slots for booking
+    const isProviderViewingOwn = req.user._id.toString() === providerId;
+    const isAdmin = req.user.role === 'admin';
+    const isCustomer = req.user.role === 'customer';
+
+    if (!isProviderViewingOwn && !isAdmin && !isCustomer) {
+      return res.status(403).json({ err: 'Access denied - invalid user role for viewing slots' });
+    }
 
     // Validate date
     const requestedDate = new Date(date);
