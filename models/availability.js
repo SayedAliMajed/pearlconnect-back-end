@@ -138,10 +138,8 @@ const availabilitySchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// Indexes for efficient lookups
-availabilitySchema.index({ providerId: 1 }, { unique: true });
-availabilitySchema.index({ 'exceptions.date': 1 });
-availabilitySchema.index({ providerId: 1, 'exceptions.date': 1 });
+// Additional indexes for enhanced performance (field-level indexes already created above)
+availabilitySchema.index({ providerId: 1, 'exceptions.date': 1 }); // Combined index for complex queries
 
 // Update the updatedAt field before saving
 availabilitySchema.pre('save', function(next) {
