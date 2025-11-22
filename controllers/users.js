@@ -60,7 +60,7 @@ router.get('/current-user', verifyToken, async (req, res) => {
 router.get('/:id', verifyToken, async (req, res) => {
   try {
     // Users can only access their own data unless they are admin
-    if (req.user._id !== req.params.id && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== req.params.id && req.user.role !== 'admin') {
       return res.status(403).json({ err: 'Access denied' });
     }
 
@@ -147,7 +147,7 @@ router.put('/:id', verifyToken, async (req, res) => {
     const { username, email, role, profile, password } = req.body;
 
     // Check if user can update (admin or owner)
-    if (req.user._id !== req.params.id && req.user.role !== 'admin') {
+    if (req.user._id.toString() !== req.params.id && req.user.role !== 'admin') {
       return res.status(403).json({ err: 'Access denied' });
     }
 
@@ -223,7 +223,7 @@ router.put('/:id', verifyToken, async (req, res) => {
 router.delete('/:id', verifyToken, checkRole(['admin']), async (req, res) => {
   try {
     // Prevent admin from deleting themselves
-    if (req.user._id === req.params.id) {
+    if (req.user._id.toString() === req.params.id) {
       return res.status(400).json({ err: 'Cannot delete your own account' });
     }
 
