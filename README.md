@@ -1,11 +1,26 @@
-# 🌟 PearlConnect - Premium Service Marketplace Platform
+<p align="center">
+  <img src="https://via.placeholder.com/150x150/4f46e5/ffffff?text=PearlConnect" alt="PearlConnect Logo" width="120" height="120"/>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/Node.js-20.19.3-green.svg)](https://nodejs.org/)
-[![Express.js](https://img.shields.io/badge/Express.js-4.x-lightgrey.svg)](https://expressjs.com/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-blue.svg)](https://www.mongodb.com/atlas)
-[![REST API](https://img.shields.io/badge/Messaging-REST--API-blue.svg)](https://restfulapi.net/)
-[![JWT](https://img.shields.io/badge/JWT-Authentication-red.svg)](https://jwt.io/)
+  <h1 align="center">PearlConnect</h1>
+  <h3 align="center">Premium Service Marketplace Platform</h3>
+
+  <p align="center">
+    <a href="https://github.com/SayedAliMajed/pearlconnect-back-end/stargazers">
+      <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"/>
+    </a>
+    <a href="https://github.com/SayedAliMajed/pearlconnect-front-end">
+      <img src="https://img.shields.io/badge/Node.js-20.19.3-green.svg" alt="Node.js"/>
+    </a>
+    <a href="https://github.com/SayedAliMajed/pearlconnect-back-end">
+      <img src="https://img.shields.io/badge/Express.js-4.x-lightgrey.svg" alt="Express.js"/>
+    </a>
+    <a href="https://www.mongodb.com/atlas">
+      <img src="https://img.shields.io/badge/MongoDB-Atlas-blue.svg" alt="MongoDB"/>
+    </a>
+  </p>
+</p>
+
+---
 
 PearlConnect is a comprehensive, full-stack service marketplace platform that seamlessly connects customers with professional service providers. Built with modern technologies for scalability, secure messaging, and exceptional user experience.
 
