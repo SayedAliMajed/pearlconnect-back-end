@@ -7,7 +7,6 @@ const mongoose = require('mongoose');
  * Links to the service being booked, the customer making the booking, and the provider
  * who will perform the service.
  */
-const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
   serviceId: {
