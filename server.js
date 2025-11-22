@@ -29,7 +29,7 @@ mongoose.connect(process.env.MONGODB_URI).catch(err => {
 });
 
 mongoose.connection.on('connected', () => {
-  console.log(`Connected to MongoDB ${mongoose.connection.name}.`);
+  // Connected to MongoDB
 });
 
 mongoose.connection.on('error', (err) => {
@@ -37,7 +37,7 @@ mongoose.connection.on('error', (err) => {
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB disconnected');
+  // MongoDB disconnected
 });
 
 // Middleware setup - Production CORS configuration
@@ -47,10 +47,15 @@ app.use(cors({
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
 
-        // For production, allow any origin starting with http/https
-        // This allows any deployment domain while maintaining security
-        const allowed = /^https?:\/\/.+$/.test(origin);
-        if (allowed) {
+        // Allow specific Vercel domain and localhost for testing
+        const allowedOrigins = [
+          'https://pearlconnect.vercel.app',
+          'http://localhost:3000',
+          'http://localhost:5173',
+          'http://127.0.0.1:5173'
+        ];
+
+        if (allowedOrigins.includes(origin) || /^https?:\/\/.+$/.test(origin)) {
           callback(null, true);
         } else {
           callback(new Error('Not allowed by CORS'));
@@ -58,7 +63,8 @@ app.use(cors({
       }
     : [
         'http://localhost:3000',
-        'http://localhost:5173'
+        'http://localhost:5173',
+        'http://127.0.0.1:5173'
       ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -99,7 +105,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`PearlConnect server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`REST API messaging system active`);
+  // Server started on port ${PORT}
+  // Environment: ${process.env.NODE_ENV || 'development'}
+  // REST API messaging system active
 });
