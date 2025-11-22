@@ -1,3 +1,5 @@
+<img width="132" height="100" alt="logo" src="https://github.com/user-attachments/assets/9f93eacb-4f80-453d-b86a-527d8c538eed" />
+
 # 🌟 PearlConnect - Premium Service Marketplace Platform
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
