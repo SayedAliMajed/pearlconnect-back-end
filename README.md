@@ -472,6 +472,11 @@ furnished to do so, subject to the following conditions:
 The above copyright notice and this permission notice shall be included in all
 copies or substantial portions of the Software.
 ```
+## 👥 Team
+
+- **Project Lead & Main Developer**: Sayed Ali Majed - Overall project control, messaging feature, integrations, documentation
+- **Full-Stack Developer**: Mohammed AlHamar - Bookings and services features (frontend & backend implementation)
+- **Full-Stack Developer**: Yaseen Alzeiny - Categories and reviews features (frontend & backend implementation)
 
 ## 📞 Support
 
@@ -485,11 +490,6 @@ copies or substantial portions of the Software.
 - **Feature Template**: Use the feature request template
 - **Discussion**: Start a discussion for big changes
 
-### 📧 Contact Information
-- **Project Owner**: [Sayed Ali Majed]
-// - **Email**: contact@pearlconnect.com
-- **LinkedIn**: [Project Team](https://linkedin.com/company/pearlconnect)
-- **Twitter**: [@PearlConnect](https://twitter.com/PearlConnect)
 
 ## 🙏 Acknowledgments
 
