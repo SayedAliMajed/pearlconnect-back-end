@@ -495,42 +495,20 @@ copies or substantial portions of the Software.
 
 PearlConnect was developed as a collaborative university project by computer science students working together to build a full-stack service marketplace platform. This team project allowed us to apply classroom knowledge to real-world application development, implementing modern technologies and best practices in software engineering.
 
-### Core Team Members
+### Project Contribution Summary
+
+This PearlConnect project was developed collaboratively by our university computer science class team:
+
 - **[Sayed Ali Majed](https://github.com/SayedAliMajed)** - Project Lead & Full-Stack Developer
-  - Architecture design, backend API development, and project coordination
-- **Mohammed AlHamar** - Backend Developer & Team Contributor
-  - Database modeling, authentication implementation, and server configuration
-- **Yaseen Alzeiny** - Frontend Developer & UI/UX Contributor
-  - React component development, interface design, and user experience optimization
+  - Overall project control, integrations, documentation, messaging system (full-stack), and coordination of team activities
 
-### Acknowledgments
+- **Mohammed AlHamar** - Full-Stack Developer
+  - Handled booking system and services features (backend APIs and frontend components)
 
-- **React Team** for the amazing frontend framework
-- **Express.js Community** for the robust backend framework
-- **MongoDB Atlas** for reliable database services
+- **Yaseen Alzeiny** - Full-Stack Developer
+  - Handled categories and reviews features (backend APIs and frontend components)
 
-- **Vite Team** for lightning-fast development experience
-
----
-
-## 🌐 Live Demo
-
-Experience PearlConnect live:
-- **🌍 Production**: [https://pearlconnect.netlify.app](https://pearlconnect.netlify.app)
-- **📊 API**: [https://api.pearlconnect.com](https://api.pearlconnect.com)
-
-## 🚀 Future Roadmap
-
-- [ ] **Mobile App**: React Native implementation
-- [ ] **Payment Integration**: Stripe/PayPal integration
-- [ ] **Advanced Analytics**: ML-powered insights
-- [ ] **Video Calls**: Built-in consultation feature
-- [ ] **Multi-language**: Internationalization support
-- [ ] **Premium Features**: Subscription model for providers
-
----
-
-<div align="center">
+All team members contributed as full-stack developers, with specific feature ownership while collaborating across the entire application.
 
 **Made with ❤️ by the PearlConnect Team**
 
