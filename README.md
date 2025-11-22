@@ -489,7 +489,14 @@ copies or substantial portions of the Software.
 - **LinkedIn**: [Project Team](https://linkedin.com/company/pearlconnect)
 - **Twitter**: [@PearlConnect](https://twitter.com/PearlConnect)
 
-## 🙏 Acknowledgments
+## � Contributors
+
+### Core Team
+- [Sayed Ali Majed](https://github.com/SayedAliMajed) - Project Lead & Full-Stack Developer
+- Mohammed AlHamar - Classmate & Team Contributor
+- Yaseen Alzeiny - Classmate & Team Contributor
+
+### Acknowledgments
 
 - **React Team** for the amazing frontend framework
 - **Express.js Community** for the robust backend framework
