@@ -491,10 +491,17 @@ copies or substantial portions of the Software.
 
 ## � Contributors
 
-### Core Team
-- [Sayed Ali Majed](https://github.com/SayedAliMajed) - Project Lead & Full-Stack Developer
-- Mohammed AlHamar - Classmate & Team Contributor
-- Yaseen Alzeiny - Classmate & Team Contributor
+### Development Team
+
+PearlConnect was developed as a collaborative university project by computer science students working together to build a full-stack service marketplace platform. This team project allowed us to apply classroom knowledge to real-world application development, implementing modern technologies and best practices in software engineering.
+
+### Core Team Members
+- **[Sayed Ali Majed](https://github.com/SayedAliMajed)** - Project Lead & Full-Stack Developer
+  - Architecture design, backend API development, and project coordination
+- **Mohammed AlHamar** - Backend Developer & Team Contributor
+  - Database modeling, authentication implementation, and server configuration
+- **Yaseen Alzeiny** - Frontend Developer & UI/UX Contributor
+  - React component development, interface design, and user experience optimization
 
 ### Acknowledgments
 
